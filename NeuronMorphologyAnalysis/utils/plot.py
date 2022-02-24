@@ -31,7 +31,7 @@ def plot_params(paramsdict,ax_parameters,ncolumns=6):
     ax_parameters.axis('off')
     
 def plot_pca(data,parameters_dict,plot_parameters):
-    plt.style.use('default')
+    plt.style.use('default') #atirni dark_background-ra ha fekete hatteret akarok
     pc0_idx = 0
     pc1_idx = 1
     pc2_idx = 2

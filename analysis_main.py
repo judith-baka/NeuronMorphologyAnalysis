@@ -5,7 +5,7 @@ import NeuronMorphologyAnalysis as nma
 import numpy as np
 import matplotlib.pyplot as plt
 %matplotlib qt
-parameters_dict = {'ccf_version':'2.5',#'3.0' or '2.5'
+parameters_dict = {'ccf_version':'3.0',#'3.0' or '2.5'
                    'project': 'medulla',#'thalamus'#'cortex'#'medulla' #  
                    'load_volumes_with_allen_df' : True,                 
                    'allocate_soma_in_white_matter_to_closest_grey' : True,
@@ -33,14 +33,14 @@ del minimum_depth_dict
 nma.utils.online_notebook.update_metadata(parameters_dict['online_notebook_ID'], parameters_dict['metadata_dir'])  
 #============================================================================================================================
 #============================================================================================================================
-#%% 3 - Run the actual analysis (optional)
+#%% 3 - Run the actual analysis (optional) #kiszedi a json fileokbol az adatokat
 allen_df =  nma.ccf.load_allen_dataframe(parameters_dict)
 allen_df = allen_df[allen_df['volume']>0]
 allen_df = nma.ccf.define_final_nuclei_for_endpoint_search(allen_df,parameters_dict)
 nma.analysis.analyze_json_files(allen_df,parameters_dict)
 #============================================================================================================================
 #============================================================================================================================
-#%% 4 - Load data
+#%% 4 - Load data #mindig meg kell csinalni! megjelenik egy ablak amiben kivalasztod a talan legujabb npy filet
 original_data, parameters_dict, allen_df = nma.io.load_raw_data_matrices(parameters_dict)
 #============================================================================================================================
 #============================================================================================================================
@@ -194,12 +194,51 @@ nma.utils.plot.plot_ground_truth_output_nuclei(data,allen_df)
 #%% 13 - initialize viewer
 snt_viewer_3d, snt_viewer_3d_cells_added = nma.utils.snt.init_viewer()
 #%% 14 - add cells to the viewer
-nma.utils.snt.add_cell_to_viewer(snt_viewer_3d,
-                                 jsonfolder = parameters_dict['json_dir'],
-                                 cell_name = 'AA0922',
-                                 cells_added = {},
-                                 axon_color= 'red',
-                                 dendrite_color = 'blue',
-                                 show_axon = True,
-                                 show_dendrite = True,
-                                 all_cells_on_left = True,)
+
+
+#%% add a list of cells to the viewer
+# =============================================================================
+# choose from this list:
+# 'all'
+# 'light red'
+# 'dark red'
+# 'dark green'
+# 'light green'
+# 'light blue'
+# 'dark blue'
+# 'gray'
+# 'yellow'  gold
+# 'motor'
+# 'soma location'   - also set 'soma_locations_needed'
+# 'axon projection' - also set 'axon_projections_needed'
+# 'Cerebellum': red
+# 'Thalamus_Hypothalamus': gray
+# 'Midbrain': limegreen
+# 'Medulla_Pons': blue
+# =============================================================================
+
+subselect_parameters = {'needed_group' : 'yellow',
+                        'soma_locations_needed' :None, #['Intermediate reticular nucleus', 'Medullary reticular nucleus'] or None
+                        'axon_projections_needed':None #['VII','XII','AMB','V'] or None
+                        }
+needed_cells = nma.analysis.generate_cell_list(allen_df,
+                                               original_data,
+                                               subselect_parameters['needed_group'],
+                                               soma_locations_needed=subselect_parameters['soma_locations_needed'], 
+                                               axon_projections_needed=subselect_parameters['axon_projections_needed']) 
+axon_color = 'gray'
+dendrite_color = 'gray'
+
+
+
+cells_added = {}
+for cell_to_add in needed_cells:
+    nma.utils.snt.add_cell_to_viewer(snt_viewer_3d,
+                                     jsonfolder = parameters_dict['json_dir'],
+                                     cell_name = cell_to_add,
+                                     cells_added = {},
+                                     axon_color= axon_color,
+                                     dendrite_color = dendrite_color,
+                                     show_axon = True,
+                                     show_dendrite = True,
+                                     all_cells_on_left = True,)

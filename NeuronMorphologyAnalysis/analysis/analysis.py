@@ -7,9 +7,8 @@ import datetime
 from ..utils import ccf, snt
 import os
 #%%
-
-def subselect_cells(allen_df,original_data,basic_group,soma_locations_needed=None,axon_projections_needed=None):
-
+def generate_cell_list(allen_df,original_data,basic_group,soma_locations_needed=None,axon_projections_needed=None):
+   
     if basic_group == 'light red':
         needed_cells = ['AA1082',
                         'AA1338',
@@ -48,10 +47,12 @@ def subselect_cells(allen_df,original_data,basic_group,soma_locations_needed=Non
                         'AA0953', 
                         'AA1063',
                         'AA1404'] #sotet piros csopi #(1404 talan sotetkek)
+        
     elif basic_group == 'dark green':
         needed_cells = ['AA0989',
-                        'AA0515',
-                        'AA0503'] #sotet zold csopi (talan mind sotet kek)
+                        'AA1426',
+                        'AA1431',
+                        'AA1535'] #sotet zold csopi (talan mind sotet kek)
     elif basic_group == 'light green':
         needed_cells = ['AA1327',
                         'AA1333',
@@ -60,42 +61,77 @@ def subselect_cells(allen_df,original_data,basic_group,soma_locations_needed=Non
                         'AA1328', 
                         'AA1343', 
                         'AA1334',
-                        'AA1363'] #vilagos zold csopi
+                        'AA1363',
+                        'AA1516'] #vilagos zold csopi
+        
     elif basic_group == 'light blue':
-        needed_cells = ['AA1075',
-                        'AA0948',
+        needed_cells = ['AA0948',
                         'AA1356',
                         'AA1355', # (1355 talan sotetkek)
                         'AA1354',
                         'AA1352',
-                        'AA0952'] #vilagos kek kaosz csopi 
+                        'AA0952',
+                        'AA1075',
+                        'AA1454',
+                        'AA1422',
+                        'AA1424',
+                        'AA1427',
+                        'AA1520'] #vilagos kek kaosz csopi 
     elif basic_group == 'dark blue':
-        needed_cells = ['AA0516', 
-                        'AA1350', 
-                        'AA1331', 
-                        'AA0517', 
-                        'AA1313', 
-                        'AA1361', 
-                        'AA1359', 
-                        'AA0996', 
-                        'AA1362', 
-                        'AA0430', 
-                        'AA0504', 
-                        'AA0434', 
-                        'AA1329', 
-                        'AA1332', 
-                        'AA0508', 
-                        'AA0947', 
-                        'AA1403', 
-                        'AA1196',
-                        'AA1326', 
-                        'AA1349', 
-                        'AA1405', 
-                        'AA1348'] #sotet kek kaosz csopi
-    elif basic_group in ['grey','gray']:
+        needed_cells = ['AA1196',
+                        'AA1313',
+                        'AA0947',
+                        'AA1331',
+                        'AA1405',
+                        'AA1329',
+                        'AA1332',
+                        'AA1348',
+                        'AA1349',
+                        'AA1359',
+                        'AA1361',
+                        'AA1362',
+                        'AA0996',
+                        'AA1350',
+                        'AA1403',
+                        'AA0504',
+                        'AA0508',
+                        'AA0516',
+                        'AA0517',
+                        'AA0434',
+                        'AA0430',
+                        'AA1489',
+                        'AA1429',
+                        'AA1453',
+                        'AA1460',
+                        'AA1428',
+                        'AA1514'] #sotet kek kaosz csopi
+        
+    elif basic_group in ['gray','grey']:
         needed_cells = ['AA1310',
                         'AA1069',
-                        'AA1030'] # szurke csopi (talan 1310 es 1069 sotetkek)
+                        'AA1030',
+                        'AA0515',
+                        'AA0503',
+                        'AA1511',
+                        'AA1521'] # szurke csopi (talan 1310 es 1069 sotetkek)
+        
+    elif basic_group == 'yellow':
+          needed_cells = ['AA1326',
+                          'AA1452',
+                          'AA1455',
+                          'AA1456',
+                          'AA1458',
+                          'AA1461',
+                          'AA1536',
+                          'AA1525',
+                          'AA1524',
+                          'AA1523',
+                          'AA1522',
+                          'AA1519',
+                          'AA1517',
+                          'AA1513']
+                          
+          
     elif basic_group == 'motor':
         needed_cells = ['AA1348',
                         'AA1362',
@@ -106,6 +142,7 @@ def subselect_cells(allen_df,original_data,basic_group,soma_locations_needed=Non
                         'AA1331',
                         'AA1196',
                         'AA0434'] # motoros magba projektalok
+        
     elif basic_group == 'all':
         needed_cells = original_data['cell_names']
     elif basic_group in np.unique(original_data['cell_juci_clusters']):
@@ -137,6 +174,12 @@ def subselect_cells(allen_df,original_data,basic_group,soma_locations_needed=Non
     else:
         print('unrecognized group')
         needed_cells = None
+    
+    return needed_cells
+
+def subselect_cells(allen_df,original_data,basic_group,soma_locations_needed=None,axon_projections_needed=None):
+
+    needed_cells = generate_cell_list(allen_df,original_data,basic_group,soma_locations_needed=None,axon_projections_needed=None)
     
     cell_idx_needed = list()
     for cell_id in needed_cells:
