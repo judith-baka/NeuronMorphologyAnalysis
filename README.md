@@ -2,7 +2,7 @@
 
 ## Install
 ```
-conda create -n nma python=3.8
+conda create -n nma python=3.8 pyimagej openjdk=8 -c conda-forge
 conda activate nma
-pip install numpy matplotlib pyimagej scipy pynrrd h5py
+conda install numpy matplotlib scipy pynrrd h5py -c conda-forge
 ```
