@@ -5,5 +5,5 @@ Script package to analyze and plot neuronal reconstructions coming from the Jane
 conda create -n nma python=3.8 pyimagej openjdk=8 -c conda-forge
 conda activate nma
 conda install numpy matplotlib scipy pynrrd h5py google-api-python-client gspread oauth2client umap-learn -c conda-forge
-pip install rastermap
+pip install rastermap miniball
 ```
