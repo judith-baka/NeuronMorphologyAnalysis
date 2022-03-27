@@ -21,6 +21,9 @@ def generate_list_of_nuclei_by_depth(allen_df,parameters_dict):
     allen_df_needed_nucleus = list()
     for allen_row in allen_df.iterrows():
         allen_row = allen_row[1]
+        if allen_row['depth'] < parameters_dict['minimum_depth'] and allen_row['name'] != 'Spinal cord':
+            allen_df_needed_nucleus.append(False)
+            continue
         id_path = np.asarray(allen_row['structureIdPath'].strip('/').split('/'),int)
         if 8 not in id_path:
             allen_df_needed_nucleus.append(False)
@@ -129,6 +132,14 @@ def load_allen_dataframe(parameters_dict):
             allen_dict['structureIdPath'].append(structureidpath)
             #break
         allen_df = pd.DataFrame.from_dict(allen_dict)
+    try: 
+        allen_df.drop('Unnamed: 0',axis = 1)
+    except:
+        pass
+    try: 
+        allen_df.drop('index',axis = 1)
+    except:
+        pass
     return allen_df
 
 def load_ccf_volume(parameters_dict):

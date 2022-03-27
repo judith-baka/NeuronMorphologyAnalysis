@@ -17,7 +17,7 @@ def init_viewer():
     Viewer3D = jimport('sc.fiji.snt.viewer.Viewer3D')
     sntcolor = jimport('org.scijava.util.ColorRGB')
     viewer_3d = Viewer3D(True)#
-    viewer_3d.setEnableDarkMode(True)
+    viewer_3d.setEnableDarkMode(False)
     brain = viewer_3d.loadRefBrain('mouse')
     #viewer_3d.setViewMode('sagittal')
     viewer_3d.setAnimationEnabled(True)
@@ -35,6 +35,9 @@ def add_cell_to_viewer(viewer_3d,
                        dendrite_color = 'blue',
                        show_axon = True,
                        show_dendrite = True,
+                       show_soma_location = False,
+                       soma_marker_size = 10,
+                       soma_marker_color = 'blue',
                        all_cells_on_left = True,):
     #%
     if cell_name in cells_added.keys():
@@ -46,24 +49,36 @@ def add_cell_to_viewer(viewer_3d,
         Tree = jimport('sc.fiji.snt.Tree')  # ezzel nyitod meg a rekonstrukciot
         
         jsonfile_with_path = os.path.join(jsonfolder,cell_name+'.json')
-        if show_axon:
-            axon = Tree(jsonfile_with_path, "axon")
-            axon.setColor(axon_color)
-            axon.setLabel(axon.getLabel()+' axon')
-            axon.setRadii(8)
-        else:
-            axon=None
+        
+        axon = Tree(jsonfile_with_path, "axon")
+        axon.setColor(axon_color)
+        axon.setLabel(axon.getLabel()+' axon')
+        axon.setRadii(8)
+        
         dendrite = Tree(jsonfile_with_path, "dendrite")
         dendrite.setLabel(dendrite.getLabel()+' dendrite')
         dendrite.setColor(dendrite_color)
         
         if not AllenUtils.isLeftHemisphere(dendrite) and all_cells_on_left:
+            try:
                 AllenUtils.assignToLeftHemisphere(axon)
+            except:
+                pass
+            try:
                 AllenUtils.assignToLeftHemisphere(dendrite)
+            except:
+                pass
         if show_axon:
             viewer_3d.add(axon)
         if show_dendrite:
             viewer_3d.add(dendrite)
+        if show_soma_location:
+            soma_location = axon.getRoot()
+            annotation = viewer_3d.annotatePoint(soma_location,cell_name+' soma location')
+            annotation.setColor(soma_marker_color)
+            annotation.setSize(soma_marker_size)
+
+            
         cells_added[cell_name] = [axon,dendrite]
     return cells_added#{cell_name:[axon,dendrite]}
 # =============================================================================

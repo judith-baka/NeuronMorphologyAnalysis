@@ -6,10 +6,260 @@ import scipy.ndimage as ndimage
 import datetime
 from ..utils import ccf, snt
 import os
+import miniball
+
 #%%
+
+def generate_sensory_motor_groups(original_data):
+    """
+    creates clusters based on being motor or sensory related
+
+    Parameters
+    ----------
+    original_data : dict
+        data extracted from json files with the analyze_json_files() function
+
+    Returns
+    -------
+    output_dict : dict
+
+    """
+    cluster_names = {'Sensory_related':'Sensory related', 
+                     'Motor_related':'Motor related'}
+    cluster_colors = {'Sensory_related':'green', 
+                     'Motor_related':'red'}
+    cluster_indices = {'Sensory_related':np.asarray(original_data['soma_area_in_the_medulla']) == 'Sensory related', 
+                       'Motor_related':np.asarray(original_data['soma_area_in_the_medulla']) == 'Motor related'}
+    
+        
+    output_dict = {'cluster_indices':cluster_indices,
+                   'cluster_colors':cluster_colors,
+                   'cluster_names':cluster_names,
+                   'clustering_description': 'Cells were assigned to sensory or motor related nuclei.'}
+    
+    return output_dict 
+
+
+def generate_sensory_motor_groups_with_projections(original_data): # NINCSENKESZEN!!# TODO
+    """
+    creates clusters based on being motor or sensory related, but separates
+    cerebellum projecting cells from motor related nuclei and
+    midbrain projecting cells from sensory nuclei
+
+    Parameters
+    ----------
+    original_data : dict
+        data extracted from json files with the analyze_json_files() function
+
+    Returns
+    -------
+    output_dict : dict
+
+    """
+    cluster_names = {'Sensory_related_midbrain_projecting':'Sensory related midbrain projecting',
+                     'Sensory_related_cerebellum_projecting':'Sensory related cerebellum projecting',
+                     'Sensory_related_rest':'Rest of sensory related', 
+                     'Motor_related_cerebellum':'Motor related cerebellum projecting',
+                     'Motor_related_rest':'Motor related rest'}
+    cluster_colors = {'Sensory_related_midbrain_projecting':'yellowgreen',
+                      'Sensory_related_cerebellum_projecting':'orange',
+                     'Sensory_related_rest':'darkgreen', 
+                     'Motor_related_cerebellum':'red',
+                     'Motor_related_rest':'brown'}
+    
+    cluster_indices = {'Sensory_related_midbrain_projecting':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
+                       'Sensory_related_cerebellum_projecting':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
+                     'Sensory_related_rest':np.asarray(np.ones(len(original_data['cell_names']))*False,bool), 
+                     'Motor_related_cerebellum':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
+                     'Motor_related_rest':np.asarray(np.ones(len(original_data['cell_names']))*False,bool)}
+    
+    for i,(motor_vs_sensory, projection_class) in enumerate(zip(original_data['soma_area_in_the_medulla'],original_data['cell_juci_clusters'])):
+        if motor_vs_sensory == 'Motor related':
+            if projection_class == 'Cerebellum':
+                cluster_indices['Motor_related_cerebellum'][i] = True
+            else:
+                cluster_indices['Motor_related_rest'][i] = True
+        elif motor_vs_sensory == 'Sensory related':
+            if projection_class == 'Midbrain':
+                cluster_indices['Sensory_related_midbrain_projecting'][i] = True
+            elif projection_class == 'Cerebellum':
+                cluster_indices['Sensory_related_cerebellum_projecting'][i] = True
+            else:
+                cluster_indices['Sensory_related_rest'][i] = True
+        else:
+            print('nor motor nor sensory related cell.. wtf?')
+    
+        
+    output_dict = {'cluster_indices':cluster_indices,
+                   'cluster_colors':cluster_colors,
+                   'cluster_names':cluster_names,
+                   'clustering_description': 'Cells were assigned to sensory or motor related nuclei. Some projection groups were removed from these big clusters.'}
+    
+    return output_dict 
+
+def generate_soma_location_groups(original_data):
+    """
+    creates clusters based on ground truth soma location - not raw ccf 
+    .. the so called "Lauren cluters"
+
+    Parameters
+    ----------
+    original_data : dict
+        data extracted from json files with the analyze_json_files() function
+
+    Returns
+    -------
+    output_dict : dict
+
+    """
+    soma_locations_header= np.unique(original_data['soma_locations'])
+    
+    cluster_names = {'trigeminal_cplx':'Trigeminal complex', 
+                     'reticular_formation':'Reticular formation',
+                     'vestibular_cplx':'Vestibular complex',
+                     'dorsal_column':'Dorsal column nucleus',
+                     'lateral_reticular_nucl': 'Lateral reticular nucleus',
+                     'motor_nucl': 'Motor nuclei'}
+    cluster_colors = {'trigeminal_cplx':'darkorange', 
+                     'reticular_formation':'c',
+                     'vestibular_cplx':'darkviolet',
+                     'dorsal_column':'orchid',
+                     'lateral_reticular_nucl':'black',
+                     'motor_nucl':'yellow'}
+    
+    lauren_cluster_nuclei = {'trigeminal_cplx':['Spinal nucleus of the trigeminal, caudal part',
+                                      'Spinal nucleus of the trigeminal, interpolar part', 
+                                      'Spinal nucleus of the trigeminal, oral part'],
+                             'reticular_formation':['Intermediate reticular nucleus',
+                                           'Gigantocellular reticular nucleus',
+                                           'Paragigantocellular reticular nucleus',
+                                           'Paragigantocellular reticular nucleus, lateral part',
+                                           'Paragigantocellular reticular nucleus, dorsal part',
+                                           'Parvicellular reticular nucleus',
+                                           'Magnocellular reticular nucleus',
+                                           'Medullary reticular nucleus',
+                                           'Medullary reticular nucleus, dorsal part'],
+                             'vestibular_cplx':['Lateral vestibular nucleus',
+                                           'Medial vestibular nucleus',
+                                           'Spinal vestibular nucleus',
+                                           'Superior vestibular nucleus'],
+                             'dorsal_column':['Cuneate nucleus',
+                                     'Gracile nucleus',
+                                     'External cuneate nucleus'],
+                             'lateral_reticular_nucl':['Lateral reticular nucleus'],
+                             'motor_nucl':['Facial motor nucleus',
+                                     'Hypoglossal nucleus']}
+    
+    lauren_cluster_indxes = {'trigeminal_cplx':np.ones(len(original_data['cell_names']))*False,
+                             'reticular_formation':np.ones(len(original_data['cell_names']))*False,
+                             'vestibular_cplx':np.ones(len(original_data['cell_names']))*False,
+                             'dorsal_column':np.ones(len(original_data['cell_names']))*False,
+                             'lateral_reticular_nucl':np.ones(len(original_data['cell_names']))*False,
+                             'motor_nucl':np.ones(len(original_data['cell_names']))*False}
+    
+    
+
+    
+    for cluster_key_now in lauren_cluster_nuclei.keys():
+        for soma_now in lauren_cluster_nuclei[cluster_key_now]:
+            nucl_idx = (soma_locations_header == soma_now)
+            if sum(nucl_idx)==0:
+                continue
+            lauren_cluster_indxes[cluster_key_now] = (lauren_cluster_indxes[cluster_key_now] + np.asarray(original_data['soma_locations_list'])[:,nucl_idx].flatten())>0
+    
+    output_dict = {'cluster_indices':lauren_cluster_indxes,
+                   'cluster_colors':cluster_colors,
+                   'cluster_names':cluster_names,
+                   'cluster_nuclei':lauren_cluster_nuclei,
+                   'clustering_description': 'Somas were assigned to nuclei by Judith and Lauren.'}
+    
+    return output_dict    
+
+def generate_main_projection_groups(original_data):
+    cluster_names = {'Cerebellum':'Cerebellum', 
+                     'Medulla_Pons':'Medulla/Pons',
+                     'Midbrain':'Midbrain', 
+                     'Thalamus_Hypothalamus':'Thalamus/Hypothalamus',
+                     'Spinal_cord': 'Spinal cord'}
+    cluster_colors = {'Cerebellum':'red', 
+                     'Medulla_Pons':'dodgerblue',
+                     'Midbrain':'limegreen', 
+                     'Thalamus_Hypothalamus':'gray',
+                     'Spinal_cord':'yellow'}
+    cluster_indices = {}
+    
+    for juci_cluster in np.unique(original_data['cell_juci_clusters']):
+        cluster_indices[juci_cluster] = np.asarray(original_data['cell_juci_clusters'])==juci_cluster
+        
+        
+    output_dict = {'cluster_indices':cluster_indices,
+                   'cluster_colors':cluster_colors,
+                   'cluster_names':cluster_names,
+                   'clustering_description': 'Cells were assigned to main projection groups by Judith.'}
+    
+    return output_dict  
+
+def generate_projection_groups(original_data):
+    """
+    creates clusters based on ccf projection patterns - a cell can belong to multiple clusters
+
+    Parameters
+    ----------
+    original_data : dict
+        data extracted from json files with the analyze_json_files() function
+
+    Returns
+    -------
+    output_dict : dict
+
+    """
+    allen_df = original_data['allen_df']
+    minimum_axon_end_point_num_forprojections = 3
+    cluster_names = {'prereticular':'Pre-reticular cells', 
+                     'premotor':'Pre-motor cells'}
+    cluster_colors = {'prereticular':'olive', 
+                     'premotor':'gold'}
+    cluster_indxes = {'prereticular':np.ones(len(original_data['cell_names']))*False,
+                      'premotor':np.ones(len(original_data['cell_names']))*False}
+    
+    cluster_target_nuclei = {'prereticular':['Intermediate reticular nucleus',
+                                             'Gigantocellular reticular nucleus',
+                                             'Paragigantocellular reticular nucleus, lateral part',
+                                             'Paragigantocellular reticular nucleus, dorsal part',
+                                             'Parvicellular reticular nucleus',
+                                             'Magnocellular reticular nucleus',
+                                             'Medullary reticular nucleus'],
+                             'premotor':['Facial motor nucleus',
+                                         'Hypoglossal nucleus',
+                                         'Nucleus ambiguus',
+                                         'Motor nucleus of trigeminal']}
+    
+    for cluster_key in cluster_target_nuclei.keys():
+        lista = list()
+        for target_now in cluster_target_nuclei[cluster_key]:
+            idx = np.where(allen_df['name']==target_now)[0][0]
+            enpoints_ipsi = original_data['allen_axon_end_points_matrix'][:,idx]*original_data['axon_end_point_numbers']
+            enpoints_contra = original_data['allen_axon_end_points_matrix'][:,idx+len(allen_df)]*original_data['axon_end_point_numbers']
+            endpoints = enpoints_ipsi + enpoints_contra
+            lista.append(endpoints>=minimum_axon_end_point_num_forprojections)
+            #break
+        lista = np.asarray(lista)
+        cluster_indxes[cluster_key] = np.sum(lista,0)>0
+    
+    output_dict = {'cluster_indices':cluster_indxes,
+                   'cluster_colors':cluster_colors,
+                   'cluster_names':cluster_names,
+                   'cluster_target_nuclei':cluster_target_nuclei,
+                   'clustering_description': 'A cell belongs to a cluster if it has at least {} endpoints in the corresponding nuclei'.format(minimum_axon_end_point_num_forprojections)}
+    
+    return output_dict    
+        
+
 def generate_cell_list(allen_df,original_data,basic_group,soma_locations_needed=None,axon_projections_needed=None):
    
-    if basic_group == 'light red':
+    if type(basic_group) == list:
+        needed_cells =basic_group
+    elif basic_group == 'light red':
         needed_cells = ['AA1082',
                         'AA1338',
                         'AA1330',
@@ -246,9 +496,22 @@ def remove_nan_from_spreadsheet(spreadsheet):
 #node_num_list = list()
 
 def analyze_json_files(allen_df,parameters_dict):
-    #%%
+    #% clean up allen_df database
+
     allen_annotation_volume = ccf.load_ccf_volume(parameters_dict)
-    
+    #%
+    if parameters_dict['assign_spinal_cord_to_ccf'] and 'Spinal cord' not in allen_df['name'].values:
+        structureId = np.max(allen_df['structureId'])+1
+        spinal_cord_dict = {'acronym':'SPC',
+                            'structureId':structureId,
+                            'parentStructureId':8,
+                            'depth':3,
+                            'name':'Spinal cord',
+                            'structureIdPath':'/997/8/{}'.format(structureId),
+                            'volume':50000.,
+                            'final_nucleus':True}
+        allen_df = allen_df.append(spinal_cord_dict, ignore_index=True)
+    #%
     stepsize_list_for_axon_endings = list()
     stepsize_list_for_somas = list()
     endpoint_num_outside_grey_matter = 0
@@ -272,15 +535,18 @@ def analyze_json_files(allen_df,parameters_dict):
     random_displacement_distance = 100 #microns
     
     
-    dendrite_length_normalize_percentiles = [0,95]
+    dendrite_length_normalize_percentiles = [0,100]
     dendrite_length_cut_outliers = False
-    dendrite_branch_point_numbers_normalize_percentiles = [0,95]
-    dendrite_end_point_numbers_normalize_percentiles = [0,95]
+    dendrite_branch_point_numbers_normalize_percentiles = [0,100]
+    dendrite_primary_branch_numbers_normalize_percentiles = [0,100]
+    dendrite_branch_numbers_normalize_percentiles = [0,100]
+    dendrite_end_point_numbers_normalize_percentiles = [0,100]
     
-    axon_length_normalize_percentiles = [0,95]
+    axon_length_normalize_percentiles = [0,100]
     axon_length_cut_outliers = False
-    axon_branch_point_numbers_normalize_percentiles = [0,95]
-    axon_end_point_numbers_normalize_percentiles = [0,95]
+    axon_branch_point_numbers_normalize_percentiles = [0,100]
+    axon_branch_numbers_normalize_percentiles = [0,100]
+    axon_end_point_numbers_normalize_percentiles = [0,100]
     
     # ----------------------------- PARAMETERS -----------------------------♥
     displacements_x = np.random.uniform(-1*random_displacement_distance,random_displacement_distance,random_displacement_n)
@@ -309,6 +575,10 @@ def analyze_json_files(allen_df,parameters_dict):
     allen_dendrite_branch_point_list_original = list()
     allen_dendrite_end_point_list_original = list()
     
+    dendrite_bounding_ball_radius = []
+    dendrite_bounding_ball_coordinates = []
+    
+    
     cell_names = list()#♥ <3 
     cell_juci_clusters = list()
     soma_coordinates = {'X':list(),
@@ -326,10 +596,13 @@ def analyze_json_files(allen_df,parameters_dict):
     dendrite_lengths = list()
     axon_lengths=list()
     axon_branch_point_numbers = list()
+    axon_branch_numbers = list()
     axon_end_point_numbers = list() # endpoint number with identified ontology
     axon_end_point_numbers_total = list() # endpoint number based on the json file
     
     dendrite_branch_point_numbers = list()
+    dendrite_branch_numbers = list()
+    dendrite_primary_branch_numbers = list()
     dendrite_end_point_numbers = list()
     
     xscale_coarse = np.arange(1000,10000,resolution_coarse)
@@ -714,6 +987,12 @@ def analyze_json_files(allen_df,parameters_dict):
                                 if final_nucleus:#8 in node_ids and not any(allen_df['parentStructureId']==node_id):
                                     #print('node found')
                                     break
+                                if parameters_dict['assign_spinal_cord_to_ccf'] and node_id == 997 and axonending.y>4700 and (axonending.x>13000 or axonending.y>7300):# ASSIGN to spinal cord
+                                    node_id = allen_df.loc[allen_df['name']=='Spinal cord']['structureId'].values[0]
+                                    node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
+                                    final_nucleus  = True
+                                    break
+                                
                             if not final_nucleus:#8 not in node_ids or any(allen_df['parentStructureId']==node_id): #returning to original point if couldn't break out of white matter
                                 node_id = axonending.getAnnotation().id() 
                                 node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
@@ -840,9 +1119,10 @@ def analyze_json_files(allen_df,parameters_dict):
                     
             dendritestats = snt.TreeStatistics(dendrite)
             branches = dendritestats.getBranches().toArray()   
-            
             dendriteendings =  dendrite.getGraph().getTips().toArray()
+            dendrite_endpoints = []
             for dendriteending in dendriteendings :
+                dendrite_endpoints.append([dendriteending.x,dendriteending.y,dendriteending.z])
                 try:
                     if parameters_dict['ccf_version'] == '3.0':
                         if mirror_cell:
@@ -863,7 +1143,9 @@ def analyze_json_files(allen_df,parameters_dict):
                     sum_dendrite_end_point_num += 1
                 except:
                     pass # no brain region for branch point
-                
+            C, r2 = miniball.get_bounding_ball(np.asarray(dendrite_endpoints))
+            dendrite_bounding_ball_radius.append(np.sqrt(r2))
+            dendrite_bounding_ball_coordinates.append(C)
             dendritebranchpoints =  dendrite.getGraph().getBPs().toArray()    
             for dendritebranchpoint in dendritebranchpoints :
                 try:
@@ -1016,10 +1298,13 @@ def analyze_json_files(allen_df,parameters_dict):
             
             dendrite_lengths.append(dendritestats.getCableLength())
             axon_lengths.append(axonstats.getCableLength())
-            axon_branch_point_numbers.append(axonstats.getNBranches())
+            axon_branch_numbers.append(axonstats.getNBranches())
+            axon_branch_point_numbers.append(len(axon.getGraph().getBPs().toArray()))
             axon_end_point_numbers.append(sum_axon_end_point_num)
             axon_end_point_numbers_total.append(len(axonendings))
-            dendrite_branch_point_numbers.append(dendritestats.getNBranches())
+            dendrite_branch_numbers.append(dendritestats.getNBranches())
+            dendrite_primary_branch_numbers.append(len(dendritestats.getPrimaryBranches()))
+            dendrite_branch_point_numbers.append(len(dendrite.getGraph().getBPs().toArray()))
             dendrite_end_point_numbers.append(len(dendriteendings))
             
             #ccf_disagreements_list.append(ccf_disagreements_now)
@@ -1121,6 +1406,17 @@ def analyze_json_files(allen_df,parameters_dict):
     if dendrite_length_cut_outliers:
         dendrite_branch_point_numbers_matrix[dendrite_branch_point_numbers_matrix>1] = 1
         dendrite_branch_point_numbers_matrix[dendrite_branch_point_numbers_matrix<0] = 0    
+    dendrite_branch_numbers_matrix = np.asarray(dendrite_branch_numbers)   
+    edge_vals = np.percentile(dendrite_branch_numbers_matrix,dendrite_branch_numbers_normalize_percentiles)
+    dendrite_branch_numbers_matrix   = (dendrite_branch_numbers_matrix -edge_vals[0])/np.diff(edge_vals)
+    if dendrite_length_cut_outliers:
+        dendrite_branch_numbers_matrix[dendrite_branch_numbers_matrix>1] = 1
+        dendrite_branch_numbers_matrix[dendrite_branch_numbers_matrix<0] = 0           
+        
+    dendrite_primary_branch_numbers_matrix = np.asarray(dendrite_primary_branch_numbers)   
+    edge_vals = np.percentile(dendrite_primary_branch_numbers_matrix,dendrite_primary_branch_numbers_normalize_percentiles)
+    dendrite_primary_branch_numbers_matrix   = (dendrite_primary_branch_numbers_matrix -edge_vals[0])/np.diff(edge_vals)        
+        
     dendrite_end_point_numbers_matrix = np.asarray(dendrite_end_point_numbers)   
     edge_vals = np.percentile(dendrite_end_point_numbers_matrix,dendrite_end_point_numbers_normalize_percentiles)
     dendrite_end_point_numbers_matrix   = (dendrite_end_point_numbers_matrix -edge_vals[0])/np.diff(edge_vals)
@@ -1142,6 +1438,12 @@ def analyze_json_files(allen_df,parameters_dict):
     if axon_length_cut_outliers:
         axon_branch_point_numbers_matrix[axon_branch_point_numbers_matrix>1] = 1
         axon_branch_point_numbers_matrix[axon_branch_point_numbers_matrix<0] = 0    
+    axon_branch_numbers_matrix = np.asarray(axon_branch_numbers)   
+    edge_vals = np.percentile(axon_branch_numbers_matrix,axon_branch_numbers_normalize_percentiles)
+    axon_branch_numbers_matrix   = (axon_branch_numbers_matrix -edge_vals[0])/np.diff(edge_vals)
+    if axon_length_cut_outliers:
+        axon_branch_numbers_matrix[axon_branch_numbers_matrix>1] = 1
+        axon_branch_numbers_matrix[axon_branch_numbers_matrix<0] = 0    
     axon_end_point_numbers_matrix = np.asarray(axon_end_point_numbers)   
     edge_vals = np.percentile(axon_end_point_numbers_matrix,axon_end_point_numbers_normalize_percentiles)
     axon_end_point_numbers_matrix   = (axon_end_point_numbers_matrix -edge_vals[0])/np.diff(edge_vals)
@@ -1298,7 +1600,11 @@ def analyze_json_files(allen_df,parameters_dict):
                   'axon_end_point_numbers' :axon_end_point_numbers.copy(),
                   'axon_end_point_numbers_total' :axon_end_point_numbers_total.copy(),
                   'dendrite_branch_point_numbers' :dendrite_branch_point_numbers.copy(),
+                  'dendrite_branch_numbers' :dendrite_branch_numbers.copy(),
+                  'dendrite_primary_branch_numbers' :dendrite_primary_branch_numbers.copy(),
                   'dendrite_end_point_numbers' :dendrite_end_point_numbers.copy(),
+                  'dendrite_bounding_sphere_radius':dendrite_bounding_ball_radius,
+                  'dendrite_bounding_sphere_coordinates':dendrite_bounding_ball_coordinates,
                   'allen_axon_matrix' :allen_axon_matrix.copy(),
                   'allen_dendrite_matrix' :allen_dendrite_matrix.copy(),
                   'allen_soma_matrix' :allen_soma_matrix.copy(),
@@ -1315,9 +1621,12 @@ def analyze_json_files(allen_df,parameters_dict):
                   'soma_coordinates_matrix_normalized' :soma_coordinates_matrix_normalized.copy(),
                   'dendrite_lengths_matrix' :dendrite_lengths_matrix.copy(),
                   'dendrite_branch_point_numbers_matrix' :dendrite_branch_point_numbers_matrix.copy(),
+                  'dendrite_branch_numbers_matrix' :dendrite_branch_numbers_matrix.copy(),
+                  'dendrite_primary_branch_numbers_matrix' :dendrite_primary_branch_numbers_matrix.copy(),
                   'dendrite_end_point_numbers_matrix' :dendrite_end_point_numbers_matrix.copy(),
                   'axon_lengths_matrix' :axon_lengths_matrix.copy(),
                   'axon_branch_point_numbers_matrix' :axon_branch_point_numbers_matrix.copy(),
+                  'axon_branch_numbers_matrix' :axon_branch_numbers_matrix.copy(),
                   'axon_end_point_numbers_matrix' :axon_end_point_numbers_matrix.copy(),
                   'subtle_features_list' :subtle_features_list.copy(),
                   'subtle_features_header':subtle_features_header,
@@ -1344,20 +1653,46 @@ def generate_big_matrix(data,allen_df,parameters_dict):
     weight_dict = parameters_dict['weights_dict']
     data['allen_axon_matrix_now'] = data['allen_axon_matrix'].copy()*data['allen_needed_nuclei']
     data['allen_axon_branch_points_matrix_now'] = data['allen_axon_branch_points_matrix'].copy()*data['allen_needed_nuclei']
-    data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix'].copy()*data['allen_needed_nuclei']
+    
+    data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix'].copy()
+    if parameters_dict['merge_ipsi_contra_projections']:
+        data['allen_axon_end_points_matrix_now'][:,:len(allen_df)]=data['allen_axon_end_points_matrix_now'][:,:len(allen_df)] + data['allen_axon_end_points_matrix_now'][:,len(allen_df):]
+        data['allen_axon_end_points_matrix_now'][:,len(allen_df):] = 0
+    if parameters_dict['normalize_endpoints_to_basic_cell_groups']:
+        basic_cell_groups_idx = np.where((allen_df['structureId']==8).values)[0][0]
+        values_ipsi = data['allen_axon_end_points_matrix_now'][:,basic_cell_groups_idx]
+        values_contra = data['allen_axon_end_points_matrix_now'][:,basic_cell_groups_idx+len(allen_df)]
+        values_contra = data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix_now']*(values_contra+values_ipsi)[:,np.newaxis]
+    data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix_now']*data['allen_needed_nuclei']
     data['allen_dendrite_matrix_now'] = data['allen_dendrite_matrix'].copy()*data['allen_needed_nuclei'][:len(allen_df)]
     data['allen_dendrite_branch_points_matrix_now'] = data['allen_dendrite_branch_points_matrix'].copy()*data['allen_needed_nuclei']
     data['allen_dendrite_end_points_matrix_now'] = data['allen_dendrite_end_points_matrix'].copy()*data['allen_needed_nuclei']
     data['allen_soma_matrix_now'] = data['allen_soma_matrix'].copy()*data['allen_needed_nuclei'][:len(allen_df)]
     data['allen_soma_distribution_matrix_now'] = data['allen_soma_distribution_matrix'].copy()*data['allen_needed_nuclei'][:len(allen_df)]
 
-
+    for key_now in ['allen_axon_matrix_now',
+                    'allen_axon_branch_points_matrix_now',
+                    'allen_axon_end_points_matrix_now',
+                    'allen_dendrite_matrix_now',
+                    'allen_dendrite_branch_points_matrix_now',
+                    'allen_dendrite_end_points_matrix_now',
+                    'allen_soma_matrix_now',
+                    'allen_soma_distribution_matrix_now']:
+        if np.any(np.isnan(data[key_now])):
+            print('nan in {} - zeroing'.format(key_now))
+            data[key_now][np.isnan(data[key_now])] = 0
 
     if parameters_dict['normalize_endpoints_to_volume']:
         volumes = np.concatenate([allen_df['volume'].values]*2)
         data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix_now']*data['axon_end_point_numbers'][:,None]
         data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix_now'] /volumes
-
+    elif parameters_dict['use_actual_end_point_numbers']:
+        data['allen_axon_end_points_matrix_now'] = data['allen_axon_end_points_matrix_now']*data['axon_end_point_numbers'][:,None]
+        
+        
+    # calculate dendrite metrics
+    axon_internodes = np.asarray(data['axon_lengths'])/(np.asarray(data['axon_end_point_numbers'])+np.asarray(data['axon_branch_point_numbers']))
+    dendrite_internodes = np.asarray(data['dendrite_lengths'])/(np.asarray(data['dendrite_end_point_numbers'])+np.asarray(data['dendrite_branch_point_numbers']))
 
     data['big_matrix'] = np.concatenate([data['subtle_features_matrix']*weight_dict['subtle_features_weight'],
                                          data['soma_coordinates_matrix_normalized']*weight_dict['soma_coordinates_weight'],
@@ -1369,10 +1704,16 @@ def generate_big_matrix(data,allen_df,parameters_dict):
                                          data['volumes_dendrite_fine_matrix']*weight_dict['dendrite_projection_fine_weight'],
                                          data['axon_lengths_matrix'][:,np.newaxis]*weight_dict['axon_length_weight'],
                                          data['axon_branch_point_numbers_matrix'][:,np.newaxis]*weight_dict['axon_branch_point_number_weight'],
+                                         data['axon_branch_numbers_matrix'][:,np.newaxis]*weight_dict['axon_branch_number_weight'],
                                          data['axon_end_point_numbers_matrix'][:,np.newaxis]*weight_dict['axon_end_point_number_weight'],
                                          data['dendrite_lengths_matrix'][:,np.newaxis]*weight_dict['dendrite_length_weight'],
+                                         axon_internodes[:,np.newaxis]*weight_dict['axon_internode_distance_weight'],
+                                         dendrite_internodes[:,np.newaxis]*weight_dict['dendirte_internode_distance_weight'],
+                                         data['dendrite_bounding_sphere_radius'][:,np.newaxis]*weight_dict['dendrite_bounding_sphere_weight'],
                                          data['dendrite_branch_point_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_branch_point_number_weight'],
+                                         data['dendrite_branch_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_branch_number_weight'],
                                          data['dendrite_end_point_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_end_point_number_weight'],
+                                         data['dendrite_primary_branch_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_primary_branch_number_weight'],
                                          data['soma_locations_matrix']*weight_dict['soma_locations_weight'],
                                          data['allen_axon_matrix_now']*weight_dict['allen_axon_weight'],
                                          data['allen_axon_branch_points_matrix_now']*weight_dict['allen_axon_branch_points_weight'],
@@ -1382,4 +1723,8 @@ def generate_big_matrix(data,allen_df,parameters_dict):
                                          data['allen_dendrite_end_points_matrix_now']*weight_dict['allen_dendrite_end_points_weight'],
                                          data['allen_soma_matrix_now']*weight_dict['allen_soma_weight'],
                                          data['allen_soma_distribution_matrix_now']*weight_dict['allen_soma_distribution_weight']],1)
+    data['big_matrix'] = data['big_matrix'][:,np.sum(data['big_matrix'],0)!=0]
+    if parameters_dict['zscore_big_matrix']:
+        
+        data['big_matrix']=scipy.stats.zscore(data['big_matrix'],0)
     return data
