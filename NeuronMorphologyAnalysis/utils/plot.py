@@ -31,7 +31,7 @@ def plot_params(paramsdict,ax_parameters,ncolumns=6):
     table.scale(1.1, 1.1)
     ax_parameters.axis('off')
     
-def plot_pca(data,parameters_dict,plot_parameters):
+def plot_pca(data,parameters_dict,plot_parameters,cluster_dict = None):
     plt.style.use('default') #atirni dark_background-ra ha fekete hatteret akarok
     pc0_idx = 0
     pc1_idx = 1
@@ -40,13 +40,20 @@ def plot_pca(data,parameters_dict,plot_parameters):
     ax_pca = fig.add_subplot(311, projection='3d')
     ax_pca_var = fig.add_subplot(312)
     ax_parameters = fig.add_subplot(313)
-    for juci_cluster in plot_parameters['juci_cluster_colors'].keys():
-        color = plot_parameters['juci_cluster_colors'][juci_cluster]
-        name = plot_parameters['juci_cluster_names'][juci_cluster]
-        idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Motor related')
-        ax_pca.plot(data['big_matrix_pcs'][idx,pc0_idx],data['big_matrix_pcs'][idx,pc1_idx],data['big_matrix_pcs'][idx,pc2_idx], 'o',color = color,label=name, alpha = 1) #+' projecting, motor related'
-        idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Sensory related')
-        ax_pca.plot(data['big_matrix_pcs'][idx,pc0_idx],data['big_matrix_pcs'][idx,pc1_idx],data['big_matrix_pcs'][idx,pc2_idx], 'o', color = color, alpha = .25)#label=juci_cluster+' projecting, sensory related',
+    if cluster_dict == None:
+        for juci_cluster in plot_parameters['juci_cluster_colors'].keys():
+            color = plot_parameters['juci_cluster_colors'][juci_cluster]
+            name = plot_parameters['juci_cluster_names'][juci_cluster]
+            idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Motor related')
+            ax_pca.plot(data['big_matrix_pcs'][idx,pc0_idx],data['big_matrix_pcs'][idx,pc1_idx],data['big_matrix_pcs'][idx,pc2_idx], 'o',color = color,label=name, alpha = 1) #+' projecting, motor related'
+            idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Sensory related')
+            ax_pca.plot(data['big_matrix_pcs'][idx,pc0_idx],data['big_matrix_pcs'][idx,pc1_idx],data['big_matrix_pcs'][idx,pc2_idx], 'o', color = color, alpha = .25)#label=juci_cluster+' projecting, sensory related',
+    else:
+        for cluster_id in cluster_dict['cluster_names'].keys():
+            color = cluster_dict['cluster_colors'][cluster_id]
+            name = cluster_dict['cluster_names'][cluster_id]
+            idx = cluster_dict['cluster_indices'][cluster_id]
+            ax_pca.plot(data['big_matrix_pcs'][idx,pc0_idx],data['big_matrix_pcs'][idx,pc1_idx],data['big_matrix_pcs'][idx,pc2_idx], 'o',color = color,label=name, alpha = 1) #+' projecting, motor related'
     ax_pca.legend()
     ax_pca.set_xlabel('PC{}'.format(pc0_idx+1))
     ax_pca.set_ylabel('PC{}'.format(pc1_idx+1))
@@ -57,31 +64,46 @@ def plot_pca(data,parameters_dict,plot_parameters):
     ax_pca_var.set_ylim([0,1])
     plot_params(parameters_dict['weights_dict'],ax_parameters)
     
-def plot_tsne_umap(data,parameters_dict,plot_parameters):
+def plot_tsne_umap(data,parameters_dict,plot_parameters,cluster_dict = None):
     plt.style.use('default')
     fig_tsne_umap = plt.figure(figsize = [10,15])
     ax_tsne = fig_tsne_umap.add_subplot(311)
-
-    for juci_cluster in plot_parameters['juci_cluster_colors'].keys():
-        color = plot_parameters['juci_cluster_colors'][juci_cluster]
-        name = plot_parameters['juci_cluster_names'][juci_cluster]
-        idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Motor related')
-        ax_tsne.plot(data['big_matrix_tsne'][idx,0],data['big_matrix_tsne'][idx,1],'o',color = color,label=name,ms=12, alpha = 1)#+' projecting, motor related'
-        idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Sensory related')
-        ax_tsne.plot(data['big_matrix_tsne'][idx,0],data['big_matrix_tsne'][idx,1],'o',color = color,ms=12, alpha = .25) #label=juci_cluster+' projecting, sensory related',
+    
+    if cluster_dict == None:
+        for juci_cluster in plot_parameters['juci_cluster_colors'].keys():
+            color = plot_parameters['juci_cluster_colors'][juci_cluster]
+            name = plot_parameters['juci_cluster_names'][juci_cluster]
+            idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Motor related')
+            ax_tsne.plot(data['big_matrix_tsne'][idx,0],data['big_matrix_tsne'][idx,1],'o',color = color,label=name,ms=12, alpha = 1)#+' projecting, motor related'
+            idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Sensory related')
+            ax_tsne.plot(data['big_matrix_tsne'][idx,0],data['big_matrix_tsne'][idx,1],'o',color = color,ms=12, alpha = .25) #label=juci_cluster+' projecting, sensory related',
+    else:
+        for cluster_id in cluster_dict['cluster_names'].keys():
+            color = cluster_dict['cluster_colors'][cluster_id]
+            name = cluster_dict['cluster_names'][cluster_id]
+            idx = cluster_dict['cluster_indices'][cluster_id]
+            ax_tsne.plot(data['big_matrix_tsne'][idx,0],data['big_matrix_tsne'][idx,1],'o',color = color,label=name,ms=12, alpha = 1)#+' projecting, motor related'
+            
     for i,txt in enumerate(data['cell_names']):
         ax_tsne.annotate(txt,(data['big_matrix_tsne'][i,0],data['big_matrix_tsne'][i,1]))
     ax_tsne.set_title('tSNE - perplexity: {}, learning rate: {}'.format(parameters_dict['pca_parameters']['perplexity'],parameters_dict['pca_parameters']['learning_rate']))    
     plt.legend()
     
     ax_umap = fig_tsne_umap.add_subplot(312)
-    for juci_cluster in plot_parameters['juci_cluster_colors'].keys():
-        color = plot_parameters['juci_cluster_colors'][juci_cluster]
-        name = plot_parameters['juci_cluster_names'][juci_cluster]
-        idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Motor related')
-        ax_umap.plot(data['big_matrix_umap'][idx,0],data['big_matrix_umap'][idx,1],'o',color = color,label=name,ms=12, alpha = 1)#+' projecting, motor related'
-        idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Sensory related')
-        ax_umap.plot(data['big_matrix_umap'][idx,0],data['big_matrix_umap'][idx,1],'o',color = color,ms=12, alpha = .25) #label=juci_cluster+' projecting, sensory related',
+    if cluster_dict == None:
+        for juci_cluster in plot_parameters['juci_cluster_colors'].keys():
+            color = plot_parameters['juci_cluster_colors'][juci_cluster]
+            name = plot_parameters['juci_cluster_names'][juci_cluster]
+            idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Motor related')
+            ax_umap.plot(data['big_matrix_umap'][idx,0],data['big_matrix_umap'][idx,1],'o',color = color,label=name,ms=12, alpha = 1)#+' projecting, motor related'
+            idx = (np.asarray(data['cell_juci_clusters']) == juci_cluster) & (np.array(data['soma_area_in_the_medulla'],str) == 'Sensory related')
+            ax_umap.plot(data['big_matrix_umap'][idx,0],data['big_matrix_umap'][idx,1],'o',color = color,ms=12, alpha = .25) #label=juci_cluster+' projecting, sensory related',
+    else:
+        for cluster_id in cluster_dict['cluster_names'].keys():
+            color = cluster_dict['cluster_colors'][cluster_id]
+            name = cluster_dict['cluster_names'][cluster_id]
+            idx = cluster_dict['cluster_indices'][cluster_id]
+            ax_umap.plot(data['big_matrix_umap'][idx,0],data['big_matrix_umap'][idx,1],'o',color = color,label=name,ms=12, alpha = 1)#+' projecting, motor related'
         
     for i,txt in enumerate(data['cell_names']):
         ax_umap.annotate(txt,(data['big_matrix_umap'][i,0],data['big_matrix_umap'][i,1]))

@@ -86,7 +86,7 @@ parameters_dict['normalize_endpoints_to_volume']= False ############### EZZEL CS
 parameters_dict['use_actual_end_point_numbers'] = False
 parameters_dict['merge_ipsi_contra_projections'] = True
 parameters_dict['normalize_endpoints_to_basic_cell_groups'] = True
-parameters_dict['minimum_depth']=3
+parameters_dict['minimum_depth']=2
 max_depth_dict = {'Hindbrain':6, #%  defining maximum depth to be considered in analysis for EVERYTHING
                     'Interbrain':6,
                     'Midbrain':5,
@@ -95,17 +95,17 @@ max_depth_dict = {'Hindbrain':6, #%  defining maximum depth to be considered in 
                     'Cerebral cortex': 7,
                     'Cerebral nuclei':6,
                     'Spinal cord':4}
-max_depth_dict = {'Hindbrain':3, #%  defining maximum depth to be considered in analysis for EVERYTHING
-                    'Interbrain':3,
+max_depth_dict = {'Hindbrain':4, #%  defining maximum depth to be considered in analysis for EVERYTHING
+                    'Interbrain':4,
                     'Midbrain':3,
-                    'Cerebellar cortex':3,
-                    'Cerebellar nuclei':3,
+                    'Cerebellar cortex':2,
+                    'Cerebellar nuclei':2,
                     'Cerebral cortex': 3,
                     'Cerebral nuclei':3,
                     'Spinal cord':4}
 weight_dict = {'allen_axon_weight':0,
               'allen_axon_branch_points_weight':0,
-              'allen_axon_end_points_weight':2,
+              'allen_axon_end_points_weight':1,
               'allen_dendrite_branch_points_weight':0,
               'allen_dendrite_end_points_weight':0,
               'allen_dendrite_weight':0,
@@ -198,7 +198,8 @@ del max_depth_dict,weight_dict
 #============================================================================================================================
 #============================================================================================================================ 
 #%% 7 - Set plot parameters
-plot_parameters = {'juci_cluster_names' : {'Cerebellum':'Cerebellum',
+plot_parameters = {'grouping':"main_projection", #"sensory_motor", "sensory_motor_with_projections","soma_location","main_projection","premotor_prereticular"
+                   'juci_cluster_names' : {'Cerebellum':'Cerebellum',
                                            'Medulla_Pons':'Medulla/Pons',
                                            'Midbrain':'Midbrain', 
                                            'Thalamus_Hypothalamus':'Thalamus/Hypothalamus',
@@ -208,16 +209,16 @@ plot_parameters = {'juci_cluster_names' : {'Cerebellum':'Cerebellum',
                                             'Midbrain':'limegreen',  #yellowgreen
                                             'Thalamus_Hypothalamus':'gray',
                                             'Spinal_cord': 'gold'}} #whitesmoke
-
+cluster_dict = nma.analysis.generate_groups(original_data,plot_parameters['grouping'])
 #============================================================================================================================
 #============================================================================================================================ 
 #%% 8 - PCA (optional)
 from sklearn.decomposition import PCA 
     
 #volumes_matrix_zscore = scipy.stats.zscore(volumes_matrix[:,np.sum(volumes_matrix,0)>0])
-data['big_matrix_pca'] = PCA(n_components=np.min([50,len(data['cell_names'])]))    
+data['big_matrix_pca'] = PCA(n_components=np.min([50,len(data['cell_names']),data['big_matrix'].shape[1]]))    
 data['big_matrix_pcs'] = data['big_matrix_pca'].fit_transform(data['big_matrix'])##volumes_matrix
-nma.utils.plot.plot_pca(data, parameters_dict, plot_parameters)
+nma.utils.plot.plot_pca(data, parameters_dict, plot_parameters,cluster_dict)
 #============================================================================================================================
 #============================================================================================================================ 
 #%% 9 - tSNE & uMAP (optional)
@@ -225,10 +226,10 @@ from sklearn.manifold import TSNE
 import umap
 
 # ----------------------------- PARAMETERS -----------------------------
-parameters_dict['pca_parameters'] = {'perplexity': 4,#3
+parameters_dict['pca_parameters'] = {'perplexity': 7,#3
                                      'learning_rate' : 10}#14#10#5#14
 parameters_dict['umap_parameters'] = {'learning_rate': .4,#4
-                                     'n_neigbors' : 14,#14#10#5#14
+                                     'n_neigbors' : 30,#14#10#5#14
                                      'min_dist' : .01,
                                      'n_epochs':500}
 # ----------------------------- PARAMETERS -----------------------------
@@ -244,7 +245,8 @@ reducer.min_dist = parameters_dict['umap_parameters']['min_dist']
 reducer.n_epochs=parameters_dict['umap_parameters']['n_epochs']
 data['big_matrix_umap'] = reducer.fit_transform(data['big_matrix'])
 #%
-nma.utils.plot.plot_tsne_umap(data, parameters_dict, plot_parameters)
+
+nma.utils.plot.plot_tsne_umap(data, parameters_dict, plot_parameters,cluster_dict)
 #============================================================================================================================
 #============================================================================================================================ 
 #%% 10 - hierarchical clustering (optional)
@@ -252,21 +254,19 @@ parameters_dict['clustering_method'] = 'weighted'#'ward')#'weighted')# 'average'
 data = nma.utils.plot.plot_clustering(data,parameters_dict,plot_parameters)
 #============================================================================================================================
 #============================================================================================================================ 
-# =============================================================================
-# #%% 10.5 - k-means clustering
-# plot_parameters['kmeans']= {'cluster_num':5}
-# from sklearn.cluster import KMeans
-# inertias = []
-# for k in range(1,10):
-#     plot_parameters['kmeans']['cluster_num'] = k
-#     kmeans = KMeans(n_clusters=plot_parameters['kmeans']['cluster_num'], init='k-means++', max_iter=300, n_init=10, random_state=0,verbose = True)
-#     kmeans.fit(data['big_matrix'])
-#     inertias.append(kmeans.inertia_)
-# plt.figure()
-# #%%
-# plt.plot(range(1,10),inertias)
-# 
-# =============================================================================
+#%% 10.5 - k-means clustering
+plot_parameters['kmeans']= {'cluster_num':5}
+from sklearn.cluster import KMeans
+inertias = []
+for k in range(1,10):
+    plot_parameters['kmeans']['cluster_num'] = k
+    kmeans = KMeans(n_clusters=plot_parameters['kmeans']['cluster_num'], init='k-means++', max_iter=300, n_init=10, random_state=0,verbose = True)
+    kmeans.fit(data['big_matrix'])
+    inertias.append(kmeans.inertia_)
+plt.figure()
+#%%
+plt.plot(range(1,10),inertias)
+
 #%% 10.5  -2 GMM clustering
 from sklearn import mixture
 from rastermap import Rastermap
