@@ -129,7 +129,10 @@ weight_dict = {'allen_axon_weight':0,
               'dendrite_projection_fine_weight':0,
               'dendrite_length_weight':0,
               'dendirte_internode_distance_weight':0,
-              'subtle_features_weight':0,#1.5#1#0.5#1,
+              'subtle_features_soma_shape_weight':0,#1.5#1#0.5#1,
+              'subtle_features_axon_origin_point_weight':0,
+              'subtle_features_bouton_type_weight':0,
+              'subtle_features_dendritic_spines_weight':0,
               'target_areas_weight':0,
               'target_locations_weight':0}
 parameters_dict['maximum_depth_dict'] = max_depth_dict
@@ -184,7 +187,10 @@ weight_dict = {'allen_axon_weight':0,
               'dendrite_projection_fine_weight':0,
               'dendrite_length_weight':1,
               'dendirte_internode_distance_weight':1,
-              'subtle_features_weight':0,#1.5#1#0.5#1,
+              'subtle_features_soma_shape_weight':0,#1.5#1#0.5#1,
+              'subtle_features_axon_origin_point_weight':0,
+              'subtle_features_bouton_type_weight':0,
+              'subtle_features_dendritic_spines_weight':.2,
               'target_areas_weight':0,
               'target_locations_weight':0}
 parameters_dict['maximum_depth_dict'] = max_depth_dict
@@ -198,7 +204,7 @@ del max_depth_dict,weight_dict
 #============================================================================================================================
 #============================================================================================================================ 
 #%% 7 - Set plot parameters
-plot_parameters = {'grouping':"main_projection", #"sensory_motor", "sensory_motor_with_projections","soma_location","main_projection","premotor_prereticular"
+plot_parameters = {'grouping':"sensory_motor_with_projections", #"sensory_motor", "sensory_motor_with_projections","soma_location","main_projection","premotor_prereticular"
                    'juci_cluster_names' : {'Cerebellum':'Cerebellum',
                                            'Medulla_Pons':'Medulla/Pons',
                                            'Midbrain':'Midbrain', 
@@ -451,19 +457,7 @@ ax_sagittal.plot(xcoord,ycoord,'ro')
 ax_sagittal.set_title(neuron_ID)
 
 #%% 17 axon/dendrite statistics for various groups
-cluster_dict = nma.analysis.generate_main_projection_groups(original_data)
-nma.utils.plot.plot_axon_dendrit_statistics(original_data, cluster_dict)
 
-
-cluster_dict = nma.analysis.generate_soma_location_groups(original_data)
-nma.utils.plot.plot_axon_dendrit_statistics(original_data, cluster_dict)
-
-
-cluster_dict = nma.analysis.generate_projection_groups(original_data)
-nma.utils.plot.plot_axon_dendrit_statistics(original_data, cluster_dict)
-
-#%%
-cluster_dict = nma.analysis.generate_sensory_motor_groups_with_projections(original_data)
 nma.utils.plot.plot_axon_dendrit_statistics(original_data, cluster_dict)
 
 #%% 18 - show dendrites in viewer

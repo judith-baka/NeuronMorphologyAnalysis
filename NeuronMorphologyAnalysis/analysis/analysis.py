@@ -9,6 +9,9 @@ import os
 import miniball
 
 #%%
+def dummy_zscore_func(data,i):
+    return data
+    
 def generate_groups(original_data,grouping):
     """
     
@@ -1676,37 +1679,51 @@ def generate_big_matrix(data,allen_df,parameters_dict):
     axon_internodes = np.asarray(data['axon_lengths'])/(np.asarray(data['axon_end_point_numbers'])+np.asarray(data['axon_branch_point_numbers']))
     dendrite_internodes = np.asarray(data['dendrite_lengths'])/(np.asarray(data['dendrite_end_point_numbers'])+np.asarray(data['dendrite_branch_point_numbers']))
 
-    data['big_matrix'] = np.concatenate([data['subtle_features_matrix']*weight_dict['subtle_features_weight'],
-                                         data['soma_coordinates_matrix_normalized']*weight_dict['soma_coordinates_weight'],
-                                         data['target_locations_matrix']*weight_dict['target_locations_weight'],
-                                         data['target_areas_matrix']*weight_dict['target_areas_weight'],
-                                         data['volumes_coarse_matrix']*weight_dict['axon_projection_coarse_weight'],
-                                         data['volumes_fine_matrix']*weight_dict['axon_projection_fine_weight'],
-                                         data['volumes_dendrite_coarse_matrix']*weight_dict['dendrite_projection_coarse_weight'],
-                                         data['volumes_dendrite_fine_matrix']*weight_dict['dendrite_projection_fine_weight'],
-                                         data['axon_lengths_matrix'][:,np.newaxis]*weight_dict['axon_length_weight'],
-                                         data['axon_branch_point_numbers_matrix'][:,np.newaxis]*weight_dict['axon_branch_point_number_weight'],
-                                         data['axon_branch_numbers_matrix'][:,np.newaxis]*weight_dict['axon_branch_number_weight'],
-                                         data['axon_end_point_numbers_matrix'][:,np.newaxis]*weight_dict['axon_end_point_number_weight'],
-                                         data['dendrite_lengths_matrix'][:,np.newaxis]*weight_dict['dendrite_length_weight'],
-                                         axon_internodes[:,np.newaxis]*weight_dict['axon_internode_distance_weight'],
-                                         dendrite_internodes[:,np.newaxis]*weight_dict['dendirte_internode_distance_weight'],
-                                         data['dendrite_bounding_sphere_radius'][:,np.newaxis]*weight_dict['dendrite_bounding_sphere_weight'],
-                                         data['dendrite_branch_point_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_branch_point_number_weight'],
-                                         data['dendrite_branch_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_branch_number_weight'],
-                                         data['dendrite_end_point_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_end_point_number_weight'],
-                                         data['dendrite_primary_branch_numbers_matrix'][:,np.newaxis]*weight_dict['dendrite_primary_branch_number_weight'],
-                                         data['soma_locations_matrix']*weight_dict['soma_locations_weight'],
-                                         data['allen_axon_matrix_now']*weight_dict['allen_axon_weight'],
-                                         data['allen_axon_branch_points_matrix_now']*weight_dict['allen_axon_branch_points_weight'],
-                                         data['allen_axon_end_points_matrix_now']*weight_dict['allen_axon_end_points_weight'],
-                                         data['allen_dendrite_matrix_now']*weight_dict['allen_dendrite_weight'],                             
-                                         data['allen_dendrite_branch_points_matrix_now']*weight_dict['allen_dendrite_branch_points_weight'],
-                                         data['allen_dendrite_end_points_matrix_now']*weight_dict['allen_dendrite_end_points_weight'],
-                                         data['allen_soma_matrix_now']*weight_dict['allen_soma_weight'],
-                                         data['allen_soma_distribution_matrix_now']*weight_dict['allen_soma_distribution_weight']],1)
-    data['big_matrix'] = data['big_matrix'][:,np.sum(data['big_matrix'],0)!=0]
     if parameters_dict['zscore_big_matrix']:
-        
-        data['big_matrix']=scipy.stats.zscore(data['big_matrix'],0)
+        zscore_fun = scipy.stats.zscore
+    else:
+        zscore_fun = dummy_zscore_func
+    #%
+    subtle_features_dict = {}
+    
+    for subtle_feature_name in ['Soma shape','Axon origin point','Bouton type','Dendritic spines']:
+        matrix_now = []
+        for i,title in enumerate(data['subtle_features_header']):
+            if subtle_feature_name in title:
+                matrix_now.append(data['subtle_features_matrix'][:,i])
+        subtle_features_dict[subtle_feature_name.lower().replace(' ', '_')]=np.asarray(matrix_now).T
+       #%
+    data['big_matrix'] = np.concatenate([zscore_fun(subtle_features_dict['soma_shape'],0)*weight_dict['subtle_features_soma_shape_weight'],
+                                         zscore_fun(subtle_features_dict['axon_origin_point'],0)*weight_dict['subtle_features_axon_origin_point_weight'],
+                                         zscore_fun(subtle_features_dict['bouton_type'],0)*weight_dict['subtle_features_bouton_type_weight'],
+                                         zscore_fun(subtle_features_dict['dendritic_spines'],0)*weight_dict['subtle_features_dendritic_spines_weight'],
+                                         zscore_fun(data['soma_coordinates_matrix_normalized'],0)*weight_dict['soma_coordinates_weight'],
+                                         zscore_fun(data['target_locations_matrix'],0)*weight_dict['target_locations_weight'],
+                                         zscore_fun(data['target_areas_matrix'],0)*weight_dict['target_areas_weight'],
+                                         zscore_fun(data['volumes_coarse_matrix'],0)*weight_dict['axon_projection_coarse_weight'],
+                                         zscore_fun(data['volumes_fine_matrix'],0)*weight_dict['axon_projection_fine_weight'],
+                                         zscore_fun(data['volumes_dendrite_coarse_matrix'],0)*weight_dict['dendrite_projection_coarse_weight'],
+                                         zscore_fun(data['volumes_dendrite_fine_matrix'],0)*weight_dict['dendrite_projection_fine_weight'],
+                                         zscore_fun(data['axon_lengths_matrix'][:,np.newaxis],0)*weight_dict['axon_length_weight'],
+                                         zscore_fun(data['axon_branch_point_numbers_matrix'][:,np.newaxis],0)*weight_dict['axon_branch_point_number_weight'],
+                                         zscore_fun(data['axon_branch_numbers_matrix'][:,np.newaxis],0)*weight_dict['axon_branch_number_weight'],
+                                         zscore_fun(data['axon_end_point_numbers_matrix'][:,np.newaxis],0)*weight_dict['axon_end_point_number_weight'],
+                                         zscore_fun(data['dendrite_lengths_matrix'][:,np.newaxis],0)*weight_dict['dendrite_length_weight'],
+                                         zscore_fun(axon_internodes[:,np.newaxis],0)*weight_dict['axon_internode_distance_weight'],
+                                         zscore_fun(dendrite_internodes[:,np.newaxis],0)*weight_dict['dendirte_internode_distance_weight'],
+                                         zscore_fun(data['dendrite_bounding_sphere_radius'][:,np.newaxis],0)*weight_dict['dendrite_bounding_sphere_weight'],
+                                         zscore_fun(data['dendrite_branch_point_numbers_matrix'][:,np.newaxis],0)*weight_dict['dendrite_branch_point_number_weight'],
+                                         zscore_fun(data['dendrite_branch_numbers_matrix'][:,np.newaxis],0)*weight_dict['dendrite_branch_number_weight'],
+                                         zscore_fun(data['dendrite_end_point_numbers_matrix'][:,np.newaxis],0)*weight_dict['dendrite_end_point_number_weight'],
+                                         zscore_fun(data['dendrite_primary_branch_numbers_matrix'][:,np.newaxis],0)*weight_dict['dendrite_primary_branch_number_weight'],
+                                         zscore_fun(data['soma_locations_matrix'],0)*weight_dict['soma_locations_weight'],
+                                         zscore_fun(data['allen_axon_matrix_now'],0)*weight_dict['allen_axon_weight'],
+                                         zscore_fun(data['allen_axon_branch_points_matrix_now'],0)*weight_dict['allen_axon_branch_points_weight'],
+                                         zscore_fun(data['allen_axon_end_points_matrix_now'],0)*weight_dict['allen_axon_end_points_weight'],
+                                         zscore_fun(data['allen_dendrite_matrix_now'],0)*weight_dict['allen_dendrite_weight'],                             
+                                         zscore_fun(data['allen_dendrite_branch_points_matrix_now'],0)*weight_dict['allen_dendrite_branch_points_weight'],
+                                         zscore_fun(data['allen_dendrite_end_points_matrix_now'],0)*weight_dict['allen_dendrite_end_points_weight'],
+                                         zscore_fun(data['allen_soma_matrix_now'],0)*weight_dict['allen_soma_weight'],
+                                         zscore_fun(data['allen_soma_distribution_matrix_now'],0)*weight_dict['allen_soma_distribution_weight']],1)
+    data['big_matrix'] = data['big_matrix'][:,np.sum(data['big_matrix'],0)>0]
     return data
