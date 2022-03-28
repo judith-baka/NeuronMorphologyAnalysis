@@ -9,251 +9,218 @@ import os
 import miniball
 
 #%%
-
-def generate_sensory_motor_groups(original_data):
+def generate_groups(original_data,grouping):
     """
-    creates clusters based on being motor or sensory related
+    
 
     Parameters
     ----------
     original_data : dict
         data extracted from json files with the analyze_json_files() function
-
+    grouping : str - "sensory_motor", ""
+        selects which grouping to apply:
+            "sensory_motor":  
+                creates clusters based on being motor or sensory related
+                
+            "sensory_motor_with_projections":
+                creates clusters based on being motor or sensory related, but separates
+                cerebellum projecting cells from motor related nuclei and
+                midbrain projecting cells from sensory nuclei
+                
+            "soma_location":
+                creates clusters based on ground truth soma location - not raw ccf 
+                .. the so called "Lauren cluters"
+                
+            "main_projection":
+                creates clusters created by Judith based on the main projection
+                patterns of the cells
+                
+            "premotor_prereticular":
+                creates clusters based on ccf projection patterns - a cell can belong to multiple clusters
     Returns
     -------
     output_dict : dict
 
     """
-    cluster_names = {'Sensory_related':'Sensory related', 
-                     'Motor_related':'Motor related'}
-    cluster_colors = {'Sensory_related':'green', 
-                     'Motor_related':'red'}
-    cluster_indices = {'Sensory_related':np.asarray(original_data['soma_area_in_the_medulla']) == 'Sensory related', 
-                       'Motor_related':np.asarray(original_data['soma_area_in_the_medulla']) == 'Motor related'}
-    
+    if grouping == 'sensory_motor':
+        cluster_names = {'Sensory_related':'Sensory related', 
+                         'Motor_related':'Motor related'}
+        cluster_colors = {'Sensory_related':'green', 
+                         'Motor_related':'red'}
+        cluster_indices = {'Sensory_related':np.asarray(original_data['soma_area_in_the_medulla']) == 'Sensory related', 
+                           'Motor_related':np.asarray(original_data['soma_area_in_the_medulla']) == 'Motor related'}
         
-    output_dict = {'cluster_indices':cluster_indices,
-                   'cluster_colors':cluster_colors,
-                   'cluster_names':cluster_names,
-                   'clustering_description': 'Cells were assigned to sensory or motor related nuclei.'}
-    
-    return output_dict 
-
-
-def generate_sensory_motor_groups_with_projections(original_data): # NINCSENKESZEN!!# TODO
-    """
-    creates clusters based on being motor or sensory related, but separates
-    cerebellum projecting cells from motor related nuclei and
-    midbrain projecting cells from sensory nuclei
-
-    Parameters
-    ----------
-    original_data : dict
-        data extracted from json files with the analyze_json_files() function
-
-    Returns
-    -------
-    output_dict : dict
-
-    """
-    cluster_names = {'Sensory_related_midbrain_projecting':'Sensory related midbrain projecting',
-                     'Sensory_related_cerebellum_projecting':'Sensory related cerebellum projecting',
-                     'Sensory_related_rest':'Rest of sensory related', 
-                     'Motor_related_cerebellum':'Motor related cerebellum projecting',
-                     'Motor_related_rest':'Motor related rest'}
-    cluster_colors = {'Sensory_related_midbrain_projecting':'yellowgreen',
-                      'Sensory_related_cerebellum_projecting':'orange',
-                     'Sensory_related_rest':'darkgreen', 
-                     'Motor_related_cerebellum':'red',
-                     'Motor_related_rest':'brown'}
-    
-    cluster_indices = {'Sensory_related_midbrain_projecting':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
-                       'Sensory_related_cerebellum_projecting':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
-                     'Sensory_related_rest':np.asarray(np.ones(len(original_data['cell_names']))*False,bool), 
-                     'Motor_related_cerebellum':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
-                     'Motor_related_rest':np.asarray(np.ones(len(original_data['cell_names']))*False,bool)}
-    
-    for i,(motor_vs_sensory, projection_class) in enumerate(zip(original_data['soma_area_in_the_medulla'],original_data['cell_juci_clusters'])):
-        if motor_vs_sensory == 'Motor related':
-            if projection_class == 'Cerebellum':
-                cluster_indices['Motor_related_cerebellum'][i] = True
+            
+        output_dict = {'cluster_indices':cluster_indices,
+                       'cluster_colors':cluster_colors,
+                       'cluster_names':cluster_names,
+                       'clustering_description': 'Cells were assigned to sensory or motor related nuclei.'}
+        
+    elif grouping == 'sensory_motor_with_projections':
+        cluster_names = {'Sensory_related_midbrain_projecting':'Sensory related midbrain projecting',
+                         'Sensory_related_cerebellum_projecting':'Sensory related cerebellum projecting',
+                         'Sensory_related_rest':'Rest of sensory related', 
+                         'Motor_related_cerebellum':'Motor related cerebellum projecting',
+                         'Motor_related_rest':'Motor related rest'}
+        cluster_colors = {'Sensory_related_midbrain_projecting':'yellowgreen',
+                          'Sensory_related_cerebellum_projecting':'orange',
+                         'Sensory_related_rest':'darkgreen', 
+                         'Motor_related_cerebellum':'red',
+                         'Motor_related_rest':'brown'}
+        cluster_indices = {'Sensory_related_midbrain_projecting':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
+                           'Sensory_related_cerebellum_projecting':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
+                         'Sensory_related_rest':np.asarray(np.ones(len(original_data['cell_names']))*False,bool), 
+                         'Motor_related_cerebellum':np.asarray(np.ones(len(original_data['cell_names']))*False,bool),
+                         'Motor_related_rest':np.asarray(np.ones(len(original_data['cell_names']))*False,bool)}
+        
+        for i,(motor_vs_sensory, projection_class) in enumerate(zip(original_data['soma_area_in_the_medulla'],original_data['cell_juci_clusters'])):
+            if motor_vs_sensory == 'Motor related':
+                if projection_class == 'Cerebellum':
+                    cluster_indices['Motor_related_cerebellum'][i] = True
+                else:
+                    cluster_indices['Motor_related_rest'][i] = True
+            elif motor_vs_sensory == 'Sensory related':
+                if projection_class == 'Midbrain':
+                    cluster_indices['Sensory_related_midbrain_projecting'][i] = True
+                elif projection_class == 'Cerebellum':
+                    cluster_indices['Sensory_related_cerebellum_projecting'][i] = True
+                else:
+                    cluster_indices['Sensory_related_rest'][i] = True
             else:
-                cluster_indices['Motor_related_rest'][i] = True
-        elif motor_vs_sensory == 'Sensory related':
-            if projection_class == 'Midbrain':
-                cluster_indices['Sensory_related_midbrain_projecting'][i] = True
-            elif projection_class == 'Cerebellum':
-                cluster_indices['Sensory_related_cerebellum_projecting'][i] = True
-            else:
-                cluster_indices['Sensory_related_rest'][i] = True
-        else:
-            print('nor motor nor sensory related cell.. wtf?')
-    
+                print('nor motor nor sensory related cell.. wtf?')
         
-    output_dict = {'cluster_indices':cluster_indices,
-                   'cluster_colors':cluster_colors,
-                   'cluster_names':cluster_names,
-                   'clustering_description': 'Cells were assigned to sensory or motor related nuclei. Some projection groups were removed from these big clusters.'}
-    
-    return output_dict 
-
-def generate_soma_location_groups(original_data):
-    """
-    creates clusters based on ground truth soma location - not raw ccf 
-    .. the so called "Lauren cluters"
-
-    Parameters
-    ----------
-    original_data : dict
-        data extracted from json files with the analyze_json_files() function
-
-    Returns
-    -------
-    output_dict : dict
-
-    """
-    soma_locations_header= np.unique(original_data['soma_locations'])
-    
-    cluster_names = {'trigeminal_cplx':'Trigeminal complex', 
-                     'reticular_formation':'Reticular formation',
-                     'vestibular_cplx':'Vestibular complex',
-                     'dorsal_column':'Dorsal column nucleus',
-                     'lateral_reticular_nucl': 'Lateral reticular nucleus',
-                     'motor_nucl': 'Motor nuclei'}
-    cluster_colors = {'trigeminal_cplx':'darkorange', 
-                     'reticular_formation':'c',
-                     'vestibular_cplx':'darkviolet',
-                     'dorsal_column':'orchid',
-                     'lateral_reticular_nucl':'black',
-                     'motor_nucl':'yellow'}
-    
-    lauren_cluster_nuclei = {'trigeminal_cplx':['Spinal nucleus of the trigeminal, caudal part',
-                                      'Spinal nucleus of the trigeminal, interpolar part', 
-                                      'Spinal nucleus of the trigeminal, oral part'],
-                             'reticular_formation':['Intermediate reticular nucleus',
-                                           'Gigantocellular reticular nucleus',
-                                           'Paragigantocellular reticular nucleus',
-                                           'Paragigantocellular reticular nucleus, lateral part',
-                                           'Paragigantocellular reticular nucleus, dorsal part',
-                                           'Parvicellular reticular nucleus',
-                                           'Magnocellular reticular nucleus',
-                                           'Medullary reticular nucleus',
-                                           'Medullary reticular nucleus, dorsal part'],
-                             'vestibular_cplx':['Lateral vestibular nucleus',
-                                           'Medial vestibular nucleus',
-                                           'Spinal vestibular nucleus',
-                                           'Superior vestibular nucleus'],
-                             'dorsal_column':['Cuneate nucleus',
-                                     'Gracile nucleus',
-                                     'External cuneate nucleus'],
-                             'lateral_reticular_nucl':['Lateral reticular nucleus'],
-                             'motor_nucl':['Facial motor nucleus',
-                                     'Hypoglossal nucleus']}
-    
-    lauren_cluster_indxes = {'trigeminal_cplx':np.ones(len(original_data['cell_names']))*False,
-                             'reticular_formation':np.ones(len(original_data['cell_names']))*False,
-                             'vestibular_cplx':np.ones(len(original_data['cell_names']))*False,
-                             'dorsal_column':np.ones(len(original_data['cell_names']))*False,
-                             'lateral_reticular_nucl':np.ones(len(original_data['cell_names']))*False,
-                             'motor_nucl':np.ones(len(original_data['cell_names']))*False}
-    
-    
-
-    
-    for cluster_key_now in lauren_cluster_nuclei.keys():
-        for soma_now in lauren_cluster_nuclei[cluster_key_now]:
-            nucl_idx = (soma_locations_header == soma_now)
-            if sum(nucl_idx)==0:
-                continue
-            lauren_cluster_indxes[cluster_key_now] = (lauren_cluster_indxes[cluster_key_now] + np.asarray(original_data['soma_locations_list'])[:,nucl_idx].flatten())>0
-    
-    output_dict = {'cluster_indices':lauren_cluster_indxes,
-                   'cluster_colors':cluster_colors,
-                   'cluster_names':cluster_names,
-                   'cluster_nuclei':lauren_cluster_nuclei,
-                   'clustering_description': 'Somas were assigned to nuclei by Judith and Lauren.'}
-    
-    return output_dict    
-
-def generate_main_projection_groups(original_data):
-    cluster_names = {'Cerebellum':'Cerebellum', 
-                     'Medulla_Pons':'Medulla/Pons',
-                     'Midbrain':'Midbrain', 
-                     'Thalamus_Hypothalamus':'Thalamus/Hypothalamus',
-                     'Spinal_cord': 'Spinal cord'}
-    cluster_colors = {'Cerebellum':'red', 
-                     'Medulla_Pons':'dodgerblue',
-                     'Midbrain':'limegreen', 
-                     'Thalamus_Hypothalamus':'gray',
-                     'Spinal_cord':'yellow'}
-    cluster_indices = {}
-    
-    for juci_cluster in np.unique(original_data['cell_juci_clusters']):
-        cluster_indices[juci_cluster] = np.asarray(original_data['cell_juci_clusters'])==juci_cluster
+            
+        output_dict = {'cluster_indices':cluster_indices,
+                       'cluster_colors':cluster_colors,
+                       'cluster_names':cluster_names,
+                       'clustering_description': 'Cells were assigned to sensory or motor related nuclei. Some projection groups were removed from these big clusters.'}
         
+    elif grouping == 'soma_location':
+        soma_locations_header= np.unique(original_data['soma_locations'])
         
-    output_dict = {'cluster_indices':cluster_indices,
-                   'cluster_colors':cluster_colors,
-                   'cluster_names':cluster_names,
-                   'clustering_description': 'Cells were assigned to main projection groups by Judith.'}
-    
-    return output_dict  
-
-def generate_projection_groups(original_data):
-    """
-    creates clusters based on ccf projection patterns - a cell can belong to multiple clusters
-
-    Parameters
-    ----------
-    original_data : dict
-        data extracted from json files with the analyze_json_files() function
-
-    Returns
-    -------
-    output_dict : dict
-
-    """
-    allen_df = original_data['allen_df']
-    minimum_axon_end_point_num_forprojections = 3
-    cluster_names = {'prereticular':'Pre-reticular cells', 
-                     'premotor':'Pre-motor cells'}
-    cluster_colors = {'prereticular':'olive', 
-                     'premotor':'gold'}
-    cluster_indxes = {'prereticular':np.ones(len(original_data['cell_names']))*False,
-                      'premotor':np.ones(len(original_data['cell_names']))*False}
-    
-    cluster_target_nuclei = {'prereticular':['Intermediate reticular nucleus',
-                                             'Gigantocellular reticular nucleus',
-                                             'Paragigantocellular reticular nucleus, lateral part',
-                                             'Paragigantocellular reticular nucleus, dorsal part',
-                                             'Parvicellular reticular nucleus',
-                                             'Magnocellular reticular nucleus',
-                                             'Medullary reticular nucleus'],
-                             'premotor':['Facial motor nucleus',
-                                         'Hypoglossal nucleus',
-                                         'Nucleus ambiguus',
-                                         'Motor nucleus of trigeminal']}
-    
-    for cluster_key in cluster_target_nuclei.keys():
-        lista = list()
-        for target_now in cluster_target_nuclei[cluster_key]:
-            idx = np.where(allen_df['name']==target_now)[0][0]
-            enpoints_ipsi = original_data['allen_axon_end_points_matrix'][:,idx]*original_data['axon_end_point_numbers']
-            enpoints_contra = original_data['allen_axon_end_points_matrix'][:,idx+len(allen_df)]*original_data['axon_end_point_numbers']
-            endpoints = enpoints_ipsi + enpoints_contra
-            lista.append(endpoints>=minimum_axon_end_point_num_forprojections)
-            #break
-        lista = np.asarray(lista)
-        cluster_indxes[cluster_key] = np.sum(lista,0)>0
-    
-    output_dict = {'cluster_indices':cluster_indxes,
-                   'cluster_colors':cluster_colors,
-                   'cluster_names':cluster_names,
-                   'cluster_target_nuclei':cluster_target_nuclei,
-                   'clustering_description': 'A cell belongs to a cluster if it has at least {} endpoints in the corresponding nuclei'.format(minimum_axon_end_point_num_forprojections)}
-    
-    return output_dict    
+        cluster_names = {'trigeminal_cplx':'Trigeminal complex', 
+                         'reticular_formation':'Reticular formation',
+                         'vestibular_cplx':'Vestibular complex',
+                         'dorsal_column':'Dorsal column nucleus',
+                         'lateral_reticular_nucl': 'Lateral reticular nucleus',
+                         'motor_nucl': 'Motor nuclei'}
+        cluster_colors = {'trigeminal_cplx':'darkorange', 
+                         'reticular_formation':'c',
+                         'vestibular_cplx':'darkviolet',
+                         'dorsal_column':'orchid',
+                         'lateral_reticular_nucl':'black',
+                         'motor_nucl':'yellow'}
         
+        lauren_cluster_nuclei = {'trigeminal_cplx':['Spinal nucleus of the trigeminal, caudal part',
+                                          'Spinal nucleus of the trigeminal, interpolar part', 
+                                          'Spinal nucleus of the trigeminal, oral part'],
+                                 'reticular_formation':['Intermediate reticular nucleus',
+                                               'Gigantocellular reticular nucleus',
+                                               'Paragigantocellular reticular nucleus',
+                                               'Paragigantocellular reticular nucleus, lateral part',
+                                               'Paragigantocellular reticular nucleus, dorsal part',
+                                               'Parvicellular reticular nucleus',
+                                               'Magnocellular reticular nucleus',
+                                               'Medullary reticular nucleus',
+                                               'Medullary reticular nucleus, dorsal part'],
+                                 'vestibular_cplx':['Lateral vestibular nucleus',
+                                               'Medial vestibular nucleus',
+                                               'Spinal vestibular nucleus',
+                                               'Superior vestibular nucleus'],
+                                 'dorsal_column':['Cuneate nucleus',
+                                         'Gracile nucleus',
+                                         'External cuneate nucleus'],
+                                 'lateral_reticular_nucl':['Lateral reticular nucleus'],
+                                 'motor_nucl':['Facial motor nucleus',
+                                         'Hypoglossal nucleus']}
+        
+        lauren_cluster_indxes = {'trigeminal_cplx':np.ones(len(original_data['cell_names']))*False,
+                                 'reticular_formation':np.ones(len(original_data['cell_names']))*False,
+                                 'vestibular_cplx':np.ones(len(original_data['cell_names']))*False,
+                                 'dorsal_column':np.ones(len(original_data['cell_names']))*False,
+                                 'lateral_reticular_nucl':np.ones(len(original_data['cell_names']))*False,
+                                 'motor_nucl':np.ones(len(original_data['cell_names']))*False}
+
+        for cluster_key_now in lauren_cluster_nuclei.keys():
+            for soma_now in lauren_cluster_nuclei[cluster_key_now]:
+                nucl_idx = (soma_locations_header == soma_now)
+                if sum(nucl_idx)==0:
+                    continue
+                lauren_cluster_indxes[cluster_key_now] = (lauren_cluster_indxes[cluster_key_now] + np.asarray(original_data['soma_locations_list'])[:,nucl_idx].flatten())>0
+        
+        output_dict = {'cluster_indices':lauren_cluster_indxes,
+                       'cluster_colors':cluster_colors,
+                       'cluster_names':cluster_names,
+                       'cluster_nuclei':lauren_cluster_nuclei,
+                       'clustering_description': 'Somas were assigned to nuclei by Judith and Lauren.'}
+        
+    elif grouping == 'main_projection':
+        cluster_names = {'Cerebellum':'Cerebellum', 
+                         'Medulla_Pons':'Medulla/Pons',
+                         'Midbrain':'Midbrain', 
+                         'Thalamus_Hypothalamus':'Thalamus/Hypothalamus',
+                         'Spinal_cord': 'Spinal cord'}
+        cluster_colors = {'Cerebellum':'red', 
+                         'Medulla_Pons':'dodgerblue',
+                         'Midbrain':'limegreen', 
+                         'Thalamus_Hypothalamus':'gray',
+                         'Spinal_cord':'yellow'}
+        cluster_indices = {}
+        
+        for juci_cluster in np.unique(original_data['cell_juci_clusters']):
+            cluster_indices[juci_cluster] = np.asarray(original_data['cell_juci_clusters'])==juci_cluster
+            
+            
+        output_dict = {'cluster_indices':cluster_indices,
+                       'cluster_colors':cluster_colors,
+                       'cluster_names':cluster_names,
+                       'clustering_description': 'Cells were assigned to main projection groups by Judith.'}
+        
+    elif grouping == 'premotor_prereticular':
+        allen_df = original_data['allen_df']
+        minimum_axon_end_point_num_forprojections = 3
+        cluster_names = {'prereticular':'Pre-reticular cells', 
+                         'premotor':'Pre-motor cells'}
+        cluster_colors = {'prereticular':'olive', 
+                         'premotor':'gold'}
+        cluster_indxes = {'prereticular':np.ones(len(original_data['cell_names']))*False,
+                          'premotor':np.ones(len(original_data['cell_names']))*False}
+        
+        cluster_target_nuclei = {'prereticular':['Intermediate reticular nucleus',
+                                                 'Gigantocellular reticular nucleus',
+                                                 'Paragigantocellular reticular nucleus, lateral part',
+                                                 'Paragigantocellular reticular nucleus, dorsal part',
+                                                 'Parvicellular reticular nucleus',
+                                                 'Magnocellular reticular nucleus',
+                                                 'Medullary reticular nucleus'],
+                                 'premotor':['Facial motor nucleus',
+                                             'Hypoglossal nucleus',
+                                             'Nucleus ambiguus',
+                                             'Motor nucleus of trigeminal']}
+        
+        for cluster_key in cluster_target_nuclei.keys():
+            lista = list()
+            for target_now in cluster_target_nuclei[cluster_key]:
+                idx = np.where(allen_df['name']==target_now)[0][0]
+                enpoints_ipsi = original_data['allen_axon_end_points_matrix'][:,idx]*original_data['axon_end_point_numbers']
+                enpoints_contra = original_data['allen_axon_end_points_matrix'][:,idx+len(allen_df)]*original_data['axon_end_point_numbers']
+                endpoints = enpoints_ipsi + enpoints_contra
+                lista.append(endpoints>=minimum_axon_end_point_num_forprojections)
+                #break
+            lista = np.asarray(lista)
+            cluster_indxes[cluster_key] = np.sum(lista,0)>0
+        
+        output_dict = {'cluster_indices':cluster_indxes,
+                       'cluster_colors':cluster_colors,
+                       'cluster_names':cluster_names,
+                       'cluster_target_nuclei':cluster_target_nuclei,
+                       'clustering_description': 'A cell belongs to a cluster if it has at least {} endpoints in the corresponding nuclei'.format(minimum_axon_end_point_num_forprojections)}
+    else:
+        output_dict = None
+        
+    return output_dict
+        
+
 
 def generate_cell_list(allen_df,original_data,basic_group,soma_locations_needed=None,axon_projections_needed=None):
    
@@ -679,12 +646,18 @@ def analyze_json_files(allen_df,parameters_dict):
                 bouton_types_final.append(bouton.strip())
                 
             subtle_features['Bouton types'].append(bouton_types_final)
-            if cell_spreadsheet['Dendritic spines'].unique()[0].lower()=='no':
-                subtle_features['Dendritic spines'].append(False)
-            elif cell_spreadsheet['Dendritic spines'].unique()[0].lower()=='yes':
-                subtle_features['Dendritic spines'].append(True)
-            else:
-                print('ERROR: Dendritic spines is not yes/no for {}'.format(neuron_ID) )
+            
+            spine_type = cell_spreadsheet['Dendritic spines'].unique()[0].lower()
+            subtle_features['Dendritic spines'].append(spine_type)            
+            print('spine: {}'.format(spine_type))
+# =============================================================================
+#             if cell_spreadsheet['Dendritic spines'].unique()[0].lower()=='no':
+#                 subtle_features['Dendritic spines'].append(False)
+#             elif cell_spreadsheet['Dendritic spines'].unique()[0].lower()=='yes':
+#                 subtle_features['Dendritic spines'].append(True)
+#             else:
+#                 print('ERROR: Dendritic spines is not yes/no for {}'.format(neuron_ID) )
+# =============================================================================
             #%
             #%
             cell_names.append(neuron_ID)
@@ -1457,6 +1430,7 @@ def analyze_json_files(allen_df,parameters_dict):
     uniquesomashapes = np.unique(subtle_features['Soma shape'])
     uniqueboutontypes = np.unique(np.concatenate(subtle_features['Bouton types']))
     uniqueaxonoriginpoints = np.unique(subtle_features['Axon origin point'])
+    uniquespinetypes = np.unique(subtle_features['Dendritic spines'])
     subtle_features_list = list()
     soma_locations_list = list()
     for neuron_idx,neuron_ID in enumerate(cell_names):
@@ -1485,12 +1459,20 @@ def analyze_json_files(allen_df,parameters_dict):
             else:
                 subtle_features_neuron.append(False)        
         
-        subtle_features_header.append('Dendritic spine')
-        try:
-            subtle_features_neuron.append(subtle_features['Dendritic spines'][neuron_idx])
-        except:
-            print('error with dendritic spine data in tabel for neuron {}'.format(neuron_ID))
-            subtle_features_neuron.append('-')
+        for spinetype in uniquespinetypes:
+            subtle_features_header.append('Dendritic spines - {}'.format(spinetype))
+            if subtle_features['Dendritic spines'][neuron_idx] == spinetype:
+                subtle_features_neuron.append(True)
+            else:
+                subtle_features_neuron.append(False) 
+# =============================================================================
+#         subtle_features_header.append('Dendritic spine')
+#         try:
+#             subtle_features_neuron.append(subtle_features['Dendritic spines'][neuron_idx])
+#         except:
+#             print('error with dendritic spine data in tabel for neuron {}'.format(neuron_ID))
+#             subtle_features_neuron.append('-')
+# =============================================================================
         subtle_features_list.append(subtle_features_neuron)
         
         
