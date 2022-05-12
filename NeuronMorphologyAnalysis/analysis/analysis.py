@@ -4,14 +4,38 @@ import matplotlib.pyplot as plt
 import scipy 
 import scipy.ndimage as ndimage
 import datetime
-from ..utils import ccf, snt
+from ..utils import ccf, snt, plot
 import os
 import miniball
 
 #%%
+
+
+
 def dummy_zscore_func(data,i):
     return data
+
+def multiplex_clusters(cluster_dict_1,cluster_dict_2):
+    alpha_list = [.3,1]
+    output_dict = {'cluster_indices':{},
+                   'cluster_colors':{},
+                   'cluster_names':{},
+                   'cluster_alpha':{},
+                   'clustering_description': 'This grouping contains two multiplexed groupings: "{}" and "{}"'.format(cluster_dict_1['clustering_description'],cluster_dict_2['clustering_description'])}
+    for clust_1_name in cluster_dict_1['cluster_names'].keys():
+        for clust_2_i, clust_2_name in enumerate(cluster_dict_2['cluster_names'].keys()):
+            alpha = (clust_2_i+1)/len(cluster_dict_2['cluster_names'].keys())
+            color = plot.lighten_color( cluster_dict_1['cluster_colors'][clust_1_name],alpha)
+            cluster_id = '{}_{}'.format(clust_1_name,clust_2_name)
+            output_dict['cluster_indices'][cluster_id] = (cluster_dict_1['cluster_indices'][clust_1_name]) & (cluster_dict_2['cluster_indices'][clust_2_name])
+            output_dict['cluster_colors'][cluster_id] =color# cluster_dict_1['cluster_colors'][clust_1_name]  # inherits color from group 1
+            output_dict['cluster_alpha'][cluster_id] = 1#alpha
+            output_dict['cluster_names'][cluster_id] = '{} - {}'.format(cluster_dict_1['cluster_names'][clust_1_name],cluster_dict_2['cluster_names'][clust_2_name])  # inherits color from group 1
+    return output_dict
     
+    
+    
+
 def generate_groups(original_data,grouping):
     """
     
@@ -220,7 +244,12 @@ def generate_groups(original_data,grouping):
                        'clustering_description': 'A cell belongs to a cluster if it has at least {} endpoints in the corresponding nuclei'.format(minimum_axon_end_point_num_forprojections)}
     else:
         output_dict = None
-        
+    if 'cluster_alpha' not in output_dict.keys():
+        cluster_alpha = output_dict['cluster_colors'].copy()
+        for key in cluster_alpha.keys():
+            cluster_alpha[key] = 1
+        output_dict['cluster_alpha'] = cluster_alpha
+            
     return output_dict
         
 
@@ -466,7 +495,7 @@ def remove_nan_from_spreadsheet(spreadsheet):
 #node_num_list = list()
 
 def analyze_json_files(allen_df,parameters_dict):
-    #% clean up allen_df database
+    #%% clean up allen_df database
 
     allen_annotation_volume = ccf.load_ccf_volume(parameters_dict)
     #%
@@ -481,7 +510,7 @@ def analyze_json_files(allen_df,parameters_dict):
                             'volume':50000.,
                             'final_nucleus':True}
         allen_df = allen_df.append(spinal_cord_dict, ignore_index=True)
-    #%
+    #%%
     stepsize_list_for_axon_endings = list()
     stepsize_list_for_somas = list()
     endpoint_num_outside_grey_matter = 0
@@ -569,6 +598,8 @@ def analyze_json_files(allen_df,parameters_dict):
     axon_branch_numbers = list()
     axon_end_point_numbers = list() # endpoint number with identified ontology
     axon_end_point_numbers_total = list() # endpoint number based on the json file
+    axon_end_point_coordinates = list() #axon end point coordinates because axon end points are moving around :)
+    
     
     dendrite_branch_point_numbers = list()
     dendrite_branch_numbers = list()
@@ -601,7 +632,7 @@ def analyze_json_files(allen_df,parameters_dict):
     X_edges = [np.nan,np.nan]
     Y_edges = [np.nan,np.nan]
     Z_edges = [np.nan,np.nan]
-    #%
+    #%%
     
     for target_brain_part_name in target_brain_part_names:
         if '_DO NOT ANALYSE' in target_brain_part_name:
@@ -709,7 +740,7 @@ def analyze_json_files(allen_df,parameters_dict):
             allen_dendrite_branch_point_contra = np.zeros(len(allen_df))
             allen_dendrite_end_point_ipsi = np.zeros(len(allen_df))
             allen_dendrite_end_point_contra = np.zeros(len(allen_df))
-            
+            axon_end_point_coordinates_cell = []
             xvals = X_edges
             yvals = Y_edges
             zvals = Z_edges
@@ -900,6 +931,7 @@ def analyze_json_files(allen_df,parameters_dict):
                             #%
             else:
                 for axonending in axonendings :
+                    axon_end_point_coordinates_now = [axonending.x,axonending.y,axonending.z]
                     try:
                         #%
                         if parameters_dict['ccf_version'] == '3.0':
@@ -919,34 +951,50 @@ def analyze_json_files(allen_df,parameters_dict):
                             node_id = axonending.getAnnotation().id()  
                             node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
                         final_nucleus = allen_df.loc[allen_df['structureId']==node_id,'final_nucleus'].values[0]
-                        if parameters_dict['allocate_axon_ending_in_white_matter_to_closest_grey'] and not final_nucleus:#(8 not in node_ids or any(allen_df['parentStructureId']==node_id)): # 8 is the mother of all gray matters, and it should not be a parent # 8 not in node_ids:#
-                        #%
-    # =============================================================================
-    #                         mirroragain=False
-    #                         while 8 not in node_ids:#this loops goes back along the axon to reach gray matter
-    #                             #print('moving axon ending back')
-    #                             mirroragain = True
-    #                             axonending = axonending.getPreviousPoint()
-    #                             if axonending.getAnnotation() == None:
-    #                                 node_id = 997
-    #                                 node_ids = [997]
-    #                             else:
-    #                                 node_id = axonending.getAnnotation().id()  
-    #                                 node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
-    #                         if mirroragain:
-    #                             if parameters_dict['ccf_version'] == '3.0':
-    #                                 if mirror_cell:
-    #                                     axonending.z  = 2*midline_coordinate_x -axonending.z
-    #                                 axonending_lateral = axonending.z
-    #                             elif parameters_dict['ccf_version'] == '2.5':
-    #                                 if mirror_cell:
-    #                                     axonending.x  = 2*midline_coordinate_x -axonending.x                            
-    #                                 axonending_lateral = axonending.x
-    # =============================================================================
-                            #%
+                        if parameters_dict['allocate_axon_ending_in_white_matter_along_axon'] and not final_nucleus:
+                            node_now = axonending
+                            if parameters_dict['assign_spinal_cord_to_ccf'] and node_id == 997 and axonending.y>4700 and (axonending.x>13000 or axonending.y>7300):# ASSIGN to spinal cord
+                                node_id = allen_df.loc[allen_df['name']=='Spinal cord']['structureId'].values[0]
+                                node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
+                                final_nucleus  = True
+                            else:
+                                while not final_nucleus:
+                                    node_now = node_now.getPreviousPoint()
+                                    axon_end_point_coordinates_now = [node_now.x,node_now.y,node_now.z]
+                                    if node_now.getAnnotation() == None:
+                                        node_id = 997
+                                        node_ids = [997]
+                                    else:
+                                        node_id = node_now.getAnnotation().id()  
+                                        node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
+                                    final_nucleus = allen_df.loc[allen_df['structureId']==node_id,'final_nucleus'].values[0]
+                                    
+                                    if parameters_dict['allocate_axon_ending_in_white_matter_to_closest_grey'] and not final_nucleus:#(8 not in node_ids or any(allen_df['parentStructureId']==node_id)): # 8 is the mother of all gray matters, and it should not be a parent # 8 not in node_ids:#
+                                        x = node_now.x
+                                        y = node_now.y
+                                        z = node_now.z
+                                        for stepsize in parameters_dict['correction_steps']:
+                                            for dx,dy,dz in zip([1,-1,0,0,0,0,1,-1,1,-1,1,-1,1,-1],[0,0,1,-1,0,0,1,-1,-1,1,1,-1,-1,1],[0,0,0,0,1,-1,-1,-1,-1,-1,1,1,1,1]):
+                                                try:
+                                                    node_id = get_allen_annotation(x+dx*stepsize,y+dy*stepsize,z+dz*stepsize,mirror_cell,parameters_dict['ccf_version'],allen_annotation_volume)
+                                                    node_ids = np.asarray(allen_df.loc[allen_df['structureId']==node_id,'structureIdPath'].values[0].strip('/').split('/'),int)
+                                                except:
+                                                    node_id = 997
+                                                    node_ids = [997]
+                                                final_nucleus = allen_df.loc[allen_df['structureId']==node_id,'final_nucleus'].values[0]
+                                                if final_nucleus:#8 in node_ids and not any(allen_df['parentStructureId']==node_id):
+                                                    #print('found grey matter with a step of {}'.format(stepsize))
+                                                    stepsize_list_for_axon_endings.append(stepsize)
+                                                    axon_end_point_coordinates_now = [x+dx*stepsize,y+dy*stepsize,z+dz*stepsize]
+                                                    break
+                                
+                                    
+                        
+                        elif parameters_dict['allocate_axon_ending_in_white_matter_to_closest_grey'] and not final_nucleus:#(8 not in node_ids or any(allen_df['parentStructureId']==node_id)): # 8 is the mother of all gray matters, and it should not be a parent # 8 not in node_ids:#
                             x = axonending.x
                             y = axonending.y
                             z = axonending.z
+                            axon_end_point_coordinates_now = [x,y,z]
                             for stepsize in parameters_dict['correction_steps']:
                                 for dx,dy,dz in zip([1,-1,0,0,0,0,1,-1,1,-1,1,-1,1,-1],[0,0,1,-1,0,0,1,-1,-1,1,1,-1,-1,1],[0,0,0,0,1,-1,-1,-1,-1,-1,1,1,1,1]):
                                     try:
@@ -959,6 +1007,7 @@ def analyze_json_files(allen_df,parameters_dict):
                                     if final_nucleus:#8 in node_ids and not any(allen_df['parentStructureId']==node_id):
                                         #print('found grey matter with a step of {}'.format(stepsize))
                                         stepsize_list_for_axon_endings.append(stepsize)
+                                        axon_end_point_coordinates_now = [x+dx*stepsize,y+dy*stepsize,z+dz*stepsize]
                                         break
                                 if final_nucleus:#8 in node_ids and not any(allen_df['parentStructureId']==node_id):
                                     #print('node found')
@@ -979,6 +1028,7 @@ def analyze_json_files(allen_df,parameters_dict):
                             else:
                                 allen_axon_end_point_ipsi[(allen_df['structureId']==node_id).argmax()] += 1
                         sum_axon_end_point_num += 1
+                        axon_end_point_coordinates_cell.append(axon_end_point_coordinates_now)
                         #%
                     except:
                         #time.sleep(1000)
@@ -1282,7 +1332,7 @@ def analyze_json_files(allen_df,parameters_dict):
             dendrite_primary_branch_numbers.append(len(dendritestats.getPrimaryBranches()))
             dendrite_branch_point_numbers.append(len(dendrite.getGraph().getBPs().toArray()))
             dendrite_end_point_numbers.append(len(dendriteendings))
-            
+            axon_end_point_coordinates.append(axon_end_point_coordinates_cell)
             #ccf_disagreements_list.append(ccf_disagreements_now)
             #%
             if show_reconstruction:
@@ -1623,6 +1673,7 @@ def analyze_json_files(allen_df,parameters_dict):
                   'target_areas_header':target_areas_header,
                   'target_locations_header':target_locations_header,
                   'target_locations_header_with_parent':target_locations_header_with_parent,
+                  'axon_end_point_coordinates':axon_end_point_coordinates,
                   'parameters_dict':parameters_dict,
                   'allen_df':allen_df}
     
@@ -1633,7 +1684,7 @@ def analyze_json_files(allen_df,parameters_dict):
         np.save(os.path.join(parameters_dict['save_dir'],'{}_exported_{}_probabilistic_axon_endings.npy'.format(parameters_dict['project'],str(datetime.date.today()))),original_data)
     else:
         np.save(os.path.join(parameters_dict['save_dir'],'{}_exported_{}.npy'.format(parameters_dict['project'],str(datetime.date.today()))),original_data)
-
+#%%
 def generate_big_matrix(data,allen_df,parameters_dict):
     weight_dict = parameters_dict['weights_dict']
     data['allen_axon_matrix_now'] = data['allen_axon_matrix'].copy()*data['allen_needed_nuclei']

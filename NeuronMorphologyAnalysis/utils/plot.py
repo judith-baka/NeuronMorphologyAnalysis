@@ -1,9 +1,30 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.cluster import hierarchy
 from rastermap import Rastermap
 from sklearn.cluster import KMeans
+
+def lighten_color(color, amount=0.5):
+    """
+    Lightens the given color by multiplying (1-luminosity) by the given amount.
+    Input can be matplotlib color string, hex string, or RGB tuple.
+    Examples:
+    >> lighten_color('g', 0.3)
+    >> lighten_color('#F034A3', 0.6)
+    >> lighten_color((.3,.55,.1), 0.5)
+    """
+    import matplotlib.colors as mc
+    import colorsys
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
+
+
 
 def plot_params(paramsdict,ax_parameters,ncolumns=6):
     plt.style.use('default')
@@ -118,7 +139,7 @@ def plot_tsne_umap(data,parameters_dict,plot_parameters,cluster_dict = None):
 def plot_clustering(data,parameters_dict,plot_parameters):
     
 
-    plt.style.use('dark_background')
+    plt.style.use('default')#'dark_background'
     hierarchy.set_link_color_palette(['lightcoral','dodgerblue','yellowgreen',])
     linked = linkage(data['big_matrix'],parameters_dict['clustering_method'])
 
@@ -439,9 +460,15 @@ def plot_ground_truth_output_nuclei(data,allen_df):
 def plot_axon_dendrit_statistics(original_data,cluster_dict):
     
    #%% 
+    original_data = original_data.copy()
     fig = plt.figure(figsize = [20,15])
+    #fig_pres = plt.figure()
     plt.style.use('default')
-
+    font = {'family' : 'normal',
+            'weight' : 'normal',
+            'size'   : 12}
+    
+    matplotlib.rc('font', **font)
     ax_juci_axon_len = fig.add_subplot(3,4,1) #(2,2,1)
     ax_juci_axon_len.set_xlabel(r'Axon length ($\mu$m)')
     ax_juci_axon_len.set_ylabel('Proportion of cells')
@@ -454,33 +481,35 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
     ax_juci_dendrite_end_point.set_xlabel('Dendrite end point number')
 
 
-    ax_juci_axon_len_vs_end_point = fig.add_subplot(3,4,5)
+    ax_juci_axon_len_vs_end_point = fig.add_subplot(3,4,5) #fig_pres.add_subplot(1,2,1)#
     ax_juci_axon_len_vs_end_point.set_xlabel('Axon end point number')
-    ax_juci_axon_len_vs_end_point.set_ylabel('Axon length')
+    ax_juci_axon_len_vs_end_point.set_ylabel('Axon length ($\mu$m)')
     
-    ax_juci_axon_len_end_ratio = fig.add_subplot(3,4,6)
-    ax_juci_axon_len_end_ratio.set_xlabel('Mean axon internode distance')
+    ax_juci_axon_len_end_ratio = fig.add_subplot(3,4,6)#fig_pres.add_subplot(1,2,2)#
+    ax_juci_axon_len_end_ratio.set_xlabel('Mean axon branch length ($\mu$m)')
     
     
 
     ax_juci_dendrite_len_vs_end_point = fig.add_subplot(3,4,7)
     ax_juci_dendrite_len_vs_end_point.set_xlabel('Dendrite end point number')
-    ax_juci_dendrite_len_vs_end_point.set_ylabel('Dendrite length')
+    ax_juci_dendrite_len_vs_end_point.set_ylabel('Dendrite length ($\mu$m)')
 
     ax_juci_dendrite_len_end_ratio = fig.add_subplot(3,4,8)
-    ax_juci_dendrite_len_end_ratio.set_xlabel('Mean dendrite internode distance')
+    ax_juci_dendrite_len_end_ratio.set_xlabel('Mean dendrite branch length ($\mu$m)')
 
     
     ax_dendrite_end_point_vs_internode = fig.add_subplot(3,4,9)
     ax_dendrite_end_point_vs_internode.set_xlabel('Dendrite bounding sphere radius (microns)')
-    ax_dendrite_end_point_vs_internode.set_ylabel('Dendrite branch number')
+    ax_dendrite_end_point_vs_internode.set_ylabel('Mean dendrite branch length ($\mu$m)')#Dendrite branch number
     
     ax_dendrite_bounding_sphere = fig.add_subplot(3,4,10)
     ax_dendrite_bounding_sphere.set_xlabel('Dendrite bounding sphere radius (microns)')
     
     ax_dendrite_internode_number = fig.add_subplot(3,4,11)
     ax_dendrite_internode_number.set_xlabel('Dendrite internode number')    
-
+    
+    #original_data['axon_lengths'] = np.asarray(original_data['axon_lengths'])/1000
+    
     axon_internodes = np.asarray(original_data['axon_lengths'])/(np.asarray(original_data['axon_end_point_numbers'])+np.asarray(original_data['axon_branch_point_numbers']))
     dendrite_internodes = np.asarray(original_data['dendrite_lengths'])/(np.asarray(original_data['dendrite_end_point_numbers'])+np.asarray(original_data['dendrite_branch_point_numbers']))
     
@@ -499,6 +528,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_juci_axon_end_point.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                     color = cluster_dict['cluster_colors'][juci_cluster],
+                                    alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                     label = cluster_dict['cluster_names'][juci_cluster],
                                     linewidth = 4)
         
@@ -507,6 +537,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_juci_axon_len.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                               color = cluster_dict['cluster_colors'][juci_cluster],
+                              alpha = cluster_dict['cluster_alpha'][juci_cluster],
                               label = cluster_dict['cluster_names'][juci_cluster],
                               linewidth = 4)
         
@@ -514,6 +545,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_juci_axon_len_end_ratio.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                         color = cluster_dict['cluster_colors'][juci_cluster],
+                                        alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                         label = cluster_dict['cluster_names'][juci_cluster],
                                         linewidth = 4)
         
@@ -522,6 +554,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_juci_dendrite_len.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                   color = cluster_dict['cluster_colors'][juci_cluster],
+                                  alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                   label = cluster_dict['cluster_names'][juci_cluster],
                                   linewidth = 4)
         
@@ -529,6 +562,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_juci_dendrite_end_point.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                         color = cluster_dict['cluster_colors'][juci_cluster],
+                                        alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                         label = cluster_dict['cluster_names'][juci_cluster],
                                         linewidth = 4)
         
@@ -536,18 +570,28 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_juci_dendrite_len_end_ratio.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                             color = cluster_dict['cluster_colors'][juci_cluster],
+                                            alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                             label = cluster_dict['cluster_names'][juci_cluster],
                                             linewidth = 4)
         
-        ax_juci_axon_len_vs_end_point.plot(np.asarray(original_data['axon_end_point_numbers'])[idx],np.asarray(original_data['axon_lengths'])[idx],'o',color = cluster_dict['cluster_colors'][juci_cluster],label = cluster_dict['cluster_names'][juci_cluster])
+        ax_juci_axon_len_vs_end_point.plot(np.asarray(original_data['axon_end_point_numbers'])[idx],
+                                           np.asarray(original_data['axon_lengths'])[idx],'o',
+                                           color = cluster_dict['cluster_colors'][juci_cluster],
+                                           alpha = cluster_dict['cluster_alpha'][juci_cluster],
+                                           label = cluster_dict['cluster_names'][juci_cluster])
         
-        ax_juci_dendrite_len_vs_end_point.plot(np.asarray(original_data['dendrite_end_point_numbers'])[idx],np.asarray(original_data['dendrite_lengths'])[idx],'o',color = cluster_dict['cluster_colors'][juci_cluster],label = cluster_dict['cluster_names'][juci_cluster])
+        ax_juci_dendrite_len_vs_end_point.plot(np.asarray(original_data['dendrite_end_point_numbers'])[idx],
+                                               np.asarray(original_data['dendrite_lengths'])[idx],'o',
+                                               color = cluster_dict['cluster_colors'][juci_cluster],
+                                               alpha = cluster_dict['cluster_alpha'][juci_cluster],
+                                               label = cluster_dict['cluster_names'][juci_cluster])
         
         ax_dendrite_end_point_vs_internode.plot(np.asarray(original_data['dendrite_bounding_sphere_radius'])[idx],
-                                                np.asarray(original_data['dendrite_branch_numbers'])[idx],
+                                               dendrite_internodes[idx],'o',# np.asarray(original_data['dendrite_branch_numbers'])[idx],
                                                 'o',color = cluster_dict['cluster_colors'][juci_cluster],
-                                                label = cluster_dict['cluster_names'][juci_cluster],
-                                                alpha = .8)
+                                                alpha = cluster_dict['cluster_alpha'][juci_cluster],
+                                                label = cluster_dict['cluster_names'][juci_cluster])
+                                                #alpha = .8)
         
         
         
@@ -555,6 +599,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_dendrite_bounding_sphere.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                             color = cluster_dict['cluster_colors'][juci_cluster],
+                                            alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                             label = cluster_dict['cluster_names'][juci_cluster],
                                             linewidth = 4)
         
@@ -563,6 +608,7 @@ def plot_axon_dendrit_statistics(original_data,cluster_dict):
         hist_x = np.mean([hist_x[:-1],hist_x[1:]],0)
         ax_dendrite_internode_number.plot(hist_x,np.cumsum(hist_y)/sum(hist_y),
                                             color = cluster_dict['cluster_colors'][juci_cluster],
+                                            alpha = cluster_dict['cluster_alpha'][juci_cluster],
                                             label = cluster_dict['cluster_names'][juci_cluster],
                                             linewidth = 4)
         
